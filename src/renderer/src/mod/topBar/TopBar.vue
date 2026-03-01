@@ -7,16 +7,41 @@ import GearSvg from '@renderer/components/svg/Gear.vue';
 import { ref } from 'vue';
 import { setContent } from '@renderer/mod/content/content';
 import SearchContents from '@renderer/mod/content/contents/SearchContents.vue';
+import Settings from '@renderer/mod/content/contents/Settings.vue';
+import BMusicAccountSettings from '@renderer/mod/content/contents/BMusicAccountSettings.vue';
 import SyncSvg from '@renderer/components/svg/Sync.vue';
 import CloudCheckSvg from '@renderer/components/svg/CloudCheck.vue';
 import CloudSlashSvg from '@renderer/components/svg/CloudSlash.vue';
 import ExclamationCrcleSvg from '@renderer/components/svg/ExclamationCrcle.vue';
+import { onMounted } from 'vue';
+import { getActiveBMusicAccount, type BMusicAccount } from '@renderer/ipcApi/ipcAccountSettings';
 
 const searchValue = ref('');
+const activeAccount = ref<BMusicAccount | null>(null);
+
+async function loadActiveAccount() {
+    activeAccount.value = await getActiveBMusicAccount() || null;
+}
+
+onMounted(() => {
+    loadActiveAccount();
+    // Re-check periodically or listen to events if needed, but for now checking on mount is fine.
+    // In a real reactive system, you'd use an event bus or store, but let's keep it simple.
+    // Let's add an interval just in case they switch accounts 
+    setInterval(loadActiveAccount, 2000);
+});
+
 function search() {
     setContent(SearchContents, { keyword: searchValue.value || '音乐' });
 }
 
+function openSettings() {
+    setContent(Settings, {});
+}
+
+function openAccountSettings() {
+    setContent(BMusicAccountSettings, {});
+}
 </script>
 <template>
     <div class="top-bar">
@@ -44,8 +69,14 @@ function search() {
                     <ExclamationCrcleSvg class="top-bar-button-icon" />
                     <div class="top-bar-button-text">同步</div>
                 </div>
+                <!-- 账户 -->
+                <div class="top-bar-avatar" title="多账号管理" @click="openAccountSettings">
+                    <div class="avatar-circle">
+                        {{ activeAccount ? activeAccount.name.charAt(0).toUpperCase() : 'B' }}
+                    </div>
+                </div>
                 <!-- 设置 -->
-                <div class="top-bar-button" title="设置">
+                <div class="top-bar-button" title="设置" @click="openSettings">
                     <GearSvg class="top-bar-button-icon" />
                 </div>
             </div>
@@ -106,6 +137,34 @@ function search() {
 .top-bar-button:hover {
     color: var(--top-bar-button-hover-color);
     background-color: var(--top-bar-button-hover-bg-color);
+}
+
+.top-bar-avatar {
+    position: relative;
+    width: 2rem;
+    height: 2rem;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.2rem;
+}
+.top-bar-avatar .avatar-circle {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background-color: var(--color-primary, #ccc);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    transition: transform 0.2s;
+}
+.top-bar-avatar:hover .avatar-circle {
+    transform: scale(1.1);
 }
 
 .search-box:has(.search-input:focus) {

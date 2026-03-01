@@ -5,7 +5,7 @@ import PlayingControl from './PlayingControl.vue';
 
 </script>
 <template>
-    <div class="music-player" :class="musicPlayerSize == 'max' && musicPlayerContrMaxDisplay.extraClass">
+    <div class="music-player" :class="[musicPlayerSize === 'max' ? 'max' : '', musicPlayerSize == 'max' && musicPlayerContrMaxDisplay.extraClass]">
         <!-- 播放器主体 -->
         <MusicPlayerView />
         <!-- 下方控制栏 -->
@@ -23,5 +23,10 @@ import PlayingControl from './PlayingControl.vue';
 .control-enter-from,
 .control-leave-to {
     transform: translateY(100%);
+}
+
+.music-player.max {
+    position: relative;
+    z-index: 100;
 }
 </style>

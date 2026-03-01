@@ -1,3 +1,6 @@
 import './ipcapis/ipcPlayListsApi'
 import './ipcapis/ipcBilibiliApi'
 import './ipcapis/emoMusicApi'
+import './ipcapis/ipcAccountSettings'
+import './ipcapis/ipcSettings'
+import './ipcapis/ipcDesktopLyrics'

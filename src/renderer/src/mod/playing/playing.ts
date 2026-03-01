@@ -1,4 +1,5 @@
 import { type Component, computed, type CSSProperties, type Reactive, readonly, type Ref, ref } from 'vue'
+import { historyStorage } from '../../storage/historyStorage'
 
 
 export type Music = {
@@ -122,6 +123,8 @@ export type PlayerCustomButton = {
   icon: Component,
   /** 当被点击时 */
   onClick?: (event: MouseEvent, playerData: string) => void,
+  /** 当鼠标右键被点击时 */
+  onContextmenu?: (event: MouseEvent, playerData: string) => void,
   /** 按钮样式 */
   style?: false | null | string | CSSProperties,
 };
@@ -247,6 +250,8 @@ export const musicPlayer = readonly({
     musicPlayerTopBarDisplay.value = getMusicPlayerTopBarDisplayDefault();
     // 设置音乐
     currentMusic.value = music;
+    // 添加到历史记录
+    historyStorage.addRecord(music);
   },
   /** 请求播放 */
   requestPlay() {

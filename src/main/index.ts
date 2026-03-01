@@ -1,9 +1,30 @@
-import { app, shell, BrowserWindow, type BrowserWindowConstructorOptions } from 'electron'
+import { app, shell, BrowserWindow, type BrowserWindowConstructorOptions, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is, platform, type Platform } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import './ipcAPI'
+import { session } from 'electron'
+import { initDB, updateActiveAccountCookies } from './db/sqlite'
 
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  // Try to prevent app hanging lock by quitting right away
+  console.log("BMusic is already running in the background. Bringing existing instance to front.");
+  app.quit()
+} else {
+  app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    // There could be multiple windows, here we just focus the main one
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length) {
+      const mainWindow = windows[0];
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
 
 function getSystemConfig(platform: Platform): BrowserWindowConstructorOptions {
   if (platform.isWindows) {
@@ -23,6 +44,10 @@ function getSystemConfig(platform: Platform): BrowserWindowConstructorOptions {
   }
   return {};
 }
+
+// Disable cache to prevent 0x5 'Unable to move the cache' lock conflict on hot restarts
+app.commandLine.appendSwitch('disable-http-cache');
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 
 function createWindow(): void {
   // Create the browser window.
@@ -47,6 +72,26 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
+
+  // ---- Close-to-tray behavior ----
+  mainWindow.on('close', (e) => {
+    const closeAction = global.__bmusicSettings?.closeAction || 'minimize';
+    if (closeAction === 'minimize' && !global.__bmusicForceQuit) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
+  // ---- System Tray ----
+  const trayIcon = nativeImage.createFromPath(icon).resize({ width: 16, height: 16 });
+  const tray = new Tray(trayIcon);
+  tray.setToolTip('BMusic');
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '显示主窗口', click: () => { mainWindow.show(); mainWindow.focus(); } },
+    { type: 'separator' },
+    { label: '退出', click: () => { global.__bmusicForceQuit = true; app.quit(); } },
+  ]));
+  tray.on('double-click', () => { mainWindow.show(); mainWindow.focus(); });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -75,6 +120,23 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  initDB();
+
+  // Track Cookie Changes and update SQLite Database
+  let cookieSaveTimeout: NodeJS.Timeout | null = null;
+  session.defaultSession.cookies.on('changed', () => {
+    if (cookieSaveTimeout) clearTimeout(cookieSaveTimeout);
+    cookieSaveTimeout = setTimeout(async () => {
+      try {
+        const cookies = await session.defaultSession.cookies.get({});
+        const cookieJson = JSON.stringify(cookies);
+        updateActiveAccountCookies(cookieJson);
+      } catch (e) {
+        console.error('Failed to sync cookies to DB:', e);
+      }
+    }, 1000); // 1-second debounce
+  });
 
   createWindow()
 

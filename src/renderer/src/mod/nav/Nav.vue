@@ -2,6 +2,8 @@
 import { setContent, contentDisplay, contentData } from '@renderer/mod/content/content';
 import SearchIcon from '@renderer/components/svg/Search.vue'
 import Recommend from '../content/contents/Recommend.vue';
+import BilibiliFavorites from '../content/contents/BilibiliFavorites.vue';
+import NeteaseLiked from '../content/contents/NeteaseLiked.vue';
 import { h, reactive, ref, watch } from 'vue';
 import { playListStorage, MYLIKEED_PLAYLIST_NAME } from '@renderer/storage/playListStorage';
 import PlayListContents from '../content/contents/PlayListContents.vue';
@@ -146,6 +148,20 @@ function onContextMenu(e: MouseEvent, name: string) {
       <IcFavoriteSvg class="icon"></IcFavoriteSvg>
       <div class="title">我喜欢的</div>
     </div>
+    <!-- B站收藏 -->
+    <div class="nav-item"
+      :class="{ selected: contentDisplay === BilibiliFavorites }"
+      @click="setContent(BilibiliFavorites, {})">
+      <span class="nav-emoji-icon">⭐</span>
+      <div class="title">B站收藏夹</div>
+    </div>
+    <!-- 网易云喜欢 -->
+    <div class="nav-item"
+      :class="{ selected: contentDisplay === NeteaseLiked }"
+      @click="setContent(NeteaseLiked, {})">
+      <span class="nav-emoji-icon">❤️</span>
+      <div class="title">网易云喜欢</div>
+    </div>
 
     <!-- 分割线 -->
     <div class="dividing-line"></div>
@@ -264,6 +280,16 @@ function onContextMenu(e: MouseEvent, name: string) {
   width: 1.3rem;
   height: 1.3rem;
 }
+
+.nav-emoji-icon {
+  font-size: 1rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 
 .nav-item {
   display: flex;

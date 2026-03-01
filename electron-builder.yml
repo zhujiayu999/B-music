@@ -2,6 +2,8 @@ appId: com.electron.app
 productName: bmusic
 directories:
   buildResources: build
+asar: true
+compression: maximum
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -14,10 +16,15 @@ asarUnpack:
 win:
   executableName: bmusic
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  artifactName: ${name}-setup-${version}.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
@@ -37,7 +44,7 @@ linux:
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
-npmRebuild: false
+npmRebuild: true
 publish:
   provider: generic
   url: https://example.com/auto-updates

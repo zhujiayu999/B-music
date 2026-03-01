@@ -12,6 +12,7 @@ import { BilibiliMusicData, paresBilibiliMusicData } from './bilibiliMusic';
 import { putNotification } from '@renderer/mod/notification/notification';
 import BilibiliLikeSvg from './svg/BilibiliLikeSvg.vue';
 import CoinOperatedSvg from './svg/CoinOperatedSvg.vue';
+import OverWatchLoading from '@renderer/components/OverWatchLoading.vue';
 
 const props = defineProps<{
   musicPlayerLink: MusicPlayerLink,
@@ -36,12 +37,18 @@ function copyLink() {
 
 // 播放器交互逻辑 
 const iframeRef = ref<WebviewTag | null>(null);
+const playerWebviewReady = ref(false);
+
+// 记录意图播放状态, 防止 webview 还未加载完毕时漏掉指令
+const intendedPlaying = ref(true);
 
 musicPlayerLink.updateButtomWidth('6.5rem');
 musicPlayerLink.onRequestPlay(() => {
+  intendedPlaying.value = true;
   iframeRef.value?.send("play");
 });
 musicPlayerLink.onRequestPause(() => {
+  intendedPlaying.value = false;
   iframeRef.value?.send("pause");
 });
 musicPlayerLink.onRequestCurrentTime((currentTime: number) => {
@@ -57,8 +64,16 @@ function onMessage(msg: string, ...args: any[]) {
   } else if (msg == "onPlaybackLengthChange") {
     musicPlayerLink.updateDuration(args[0]);
   } else if (msg == "onPlaybackStateChange") {
-    musicPlayerLink.updatePlaying(args[0]);
+    const isPlaying = args[0];
+    
+    musicPlayerLink.updatePlaying(isPlaying);
     musicPlayerLink.updateLoading(false);
+    playerWebviewReady.value = true;
+    
+    // 对齐初始状态: 如果 b站自动开播了，但程序当前处于暂停意图状态，则强制发暂停指令覆盖
+    if (isPlaying && !intendedPlaying.value) {
+      iframeRef.value?.send("pause");
+    }
   } else if (msg == "onBpxStateBuff") {
     musicPlayerLink.updateLoading(args[0]);
   } else if (msg == "onPlaybackEnded") {
@@ -71,6 +86,8 @@ function onMessage(msg: string, ...args: any[]) {
     like.value = args[0];
   } else if (msg == "onCoinChange") {
     coinOperated.value = args[0];
+  } else if (msg == "onSubtitleChange") {
+    window.electron?.ipcRenderer.invoke('desktop-lyrics-update-text', args[0]);
   }
 }
 
@@ -80,6 +97,11 @@ watch(iframeRef, () => {
       onMessage(event.channel, ...event.args);
     });
   });
+});
+
+// Reset loading state when the music source URL changes, so the overlay shows again for a new track
+watch(() => bilibiliUrl.value, () => {
+  playerWebviewReady.value = false;
 });
 
 
@@ -109,9 +131,24 @@ watch(iframeRef, () => {
     title: "给bilibili视频投币",
     icon: markRaw(CoinOperatedSvg),
     style: computed(() => coinOperated.value ? "color: #fb7299" : "") as any,
-    onClick: () => {
-      iframeRef.value?.send("clickCoin");
-    },
+    onClick: (e: MouseEvent) => {
+      e.preventDefault();
+      ContextMenu.showContextMenu({
+        x: e.x,
+        y: e.y,
+        theme: "mac dark",
+        items: [
+          {
+            label: "投 1 枚硬币",
+            onClick: () => iframeRef.value?.send("clickCoin", 1)
+          },
+          {
+            label: "投 2 枚硬币",
+            onClick: () => iframeRef.value?.send("clickCoin", 2)
+          }
+        ]
+      });
+    }
   });
   // 操控网页
   const controlButton = reactive<PlayerCustomButton>({
@@ -289,7 +326,11 @@ musicPlayerLink.updateTopBarDisplay(reactive({
     </div>
     <!-- 播放器 -->
     <webview v-if="bilibiliMusicPlayer__filePath" ref="iframeRef" class="b-iframe" :src="bilibiliUrl"
-      :preload="bilibiliMusicPlayer__filePath" allowpopups nodeintegration></webview>
+      :preload="bilibiliMusicPlayer__filePath" allowpopups nodeintegration
+      :style="{ opacity: playerWebviewReady ? 1 : 0 }"
+    ></webview>
+    <!-- OverWatch loading overlay for mini-player -->
+    <OverWatchLoading v-if="musicPlayerSize === 'buttom'" :visible="!playerWebviewReady" />
     <!-- 放大状态遮罩 -->
     <div class="player-max-mask" :class="musicPlayerContrMaxDisplay.type"
       v-if="musicPlayerSize === 'max' && isNotManualControl" @contextmenu="onContextMenu">

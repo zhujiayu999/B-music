@@ -41,11 +41,17 @@ function chickMusicIcon(music: Music, index: number) {
         } else {
             musicPlayer.requestPlay();
         }
+        return;
+    }
+    
+    const doubleClickAction = localStorage.getItem('bmusic-double-click') || 'replace-list';
+    if (doubleClickAction === 'add-single') {
+        playList.addAndPlay(music);
     } else if (props.replacePlayList) {
         playList.setList(props.list);
         playList.setCurrentIndex(index);
     } else {
-        musicPlayer.setCurrentMusic(music);
+        playList.addAndPlay(music);
     }
 }
 

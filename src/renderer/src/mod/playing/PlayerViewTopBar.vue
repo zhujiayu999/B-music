@@ -13,7 +13,8 @@ import DownSvg from '@renderer/components/svg/Down.vue';
             </div>
             <!-- 其他自定义按钮 -->
             <div v-for="button of topBarCustomButtons" class="player-but top-bar-button"
-                @click="button.onClick?.($event, musicPlayer.currentMusic!.playerData)" :title="button.title">
+                @click="button.onClick?.($event, musicPlayer.currentMusic!.playerData)"
+                @contextmenu="button.onContextmenu?.($event, musicPlayer.currentMusic!.playerData)" :title="button.title">
                 <component :is="button.icon" class="player-but-icon" :style="button.style"></component>
             </div>
         </div>

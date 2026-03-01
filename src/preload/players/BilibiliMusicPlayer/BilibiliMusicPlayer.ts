@@ -9,7 +9,9 @@ import {
   regOnPlaybackStateChange,
   regOnVolumeChange,
   setPlaybackProgress,
-  setVolume
+  setVolume,
+  autoEnableSubtitle,
+  regOnSubtitleChange
 } from './Control'
 import { ipcRenderer } from 'electron';
 
@@ -75,14 +77,21 @@ async function onLoaded() {
   regOnCoinChange((coin) => {
     ipcRenderer.sendToHost('onCoinChange', coin);
   });
-  ipcRenderer.on("clickCoin", (_event, ..._args: any[]) => {
-    clickCoin();
+  ipcRenderer.on("clickCoin", (_event, ...args: any[]) => {
+    const count = args[0] ? parseInt(args[0]) : 1;
+    clickCoin(count);
   });
 
   //初始化音量
   ipcRenderer.sendToHost("reqInitVolume");
   fullScreen();  //自动网页全屏
   // autoCloseCaptcha();  //自动关闭验证码
+
+  //自动开启字幕并监听字幕变化
+  autoEnableSubtitle();
+  regOnSubtitleChange((text) => {
+    ipcRenderer.sendToHost('onSubtitleChange', text);
+  });
 }
 
 

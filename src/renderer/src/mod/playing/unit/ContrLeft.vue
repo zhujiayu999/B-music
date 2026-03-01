@@ -29,7 +29,8 @@ const props = defineProps<{
                     </div>
                     <!-- 左下角按钮自定义按钮 -->
                     <div class="user-button" v-for="button of playerLeftCustomButtons" :title="button.title"
-                        @click="button.onClick?.($event, musicPlayer.currentMusic!.playerData)">
+                        @click="button.onClick?.($event, musicPlayer.currentMusic!.playerData)"
+                        @contextmenu="button.onContextmenu?.($event, musicPlayer.currentMusic!.playerData)">
                         <component :is="button.icon" style="width: 100%; height: 100%;"
                             :style="['width: 100%; height: 100%;', button.style]" />
                     </div>

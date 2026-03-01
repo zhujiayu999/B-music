@@ -1,9 +1,12 @@
 <!-- 右边 -->
 <script setup lang="ts">
-import { playListOpen } from '@renderer/mod/playingList/playingList';
+import { playListOpen, historyOpen } from '@renderer/mod/playingList/playingList';
 import { musicPlayer, playerRightCustomButtons } from '../playing';
 import PlayListLineSvg from '@renderer/components/svg/PlayListLine.vue';
+import HistoryLineSvg from '@renderer/components/svg/HistoryLine.vue';
 import VolumeButton from './VolumeButton.vue';
+import LyricsLineSvg from '@renderer/components/svg/LyricsLine.vue';
+import { lyricsStorage, toggleDesktopLyrics } from '@renderer/storage/lyricsStorage';
 
 const props = defineProps<{
     /** 是否显示时间 */
@@ -23,8 +26,16 @@ function formatTime(time: number) {
         <div class="right-button" @click="playListOpen = !playListOpen" title="播放列表">
             <PlayListLineSvg style="width: 100%;height: 100%;" />
         </div>
+        <!-- 播放历史 -->
+        <div class="right-button" @click="historyOpen = !historyOpen" title="播放历史">
+            <HistoryLineSvg style="width: 100%;height: 100%;" />
+        </div>
+        <!-- 桌面歌词开关 -->
+        <div class="right-button btn-lyrics" :class="{ active: lyricsStorage.showDesktopLyrics }" @click="toggleDesktopLyrics" title="打开/关闭桌面歌词">
+            <LyricsLineSvg style="width: 100%;height: 100%;" />
+        </div>
         <!-- 音量按钮 -->
-        <VolumeButton class="right-button" />
+        <VolumeButton class="right-button volume-btn" />
         <!-- 右下角自定义按钮 -->
         <div class="right-button" v-for="button of playerRightCustomButtons"
             @click="button.onClick?.($event, musicPlayer.currentMusic!.playerData)" :title="button.title">
@@ -72,5 +83,12 @@ function formatTime(time: number) {
     align-items: center;
     gap: 1rem;
     padding-right: 1.5rem;
+}
+
+.btn-lyrics {
+    transition: color 0.2s;
+}
+.btn-lyrics.active {
+    color: var(--color-music-player-accent, #fb7299);
 }
 </style>

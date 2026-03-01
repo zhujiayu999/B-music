@@ -1,62 +1,68 @@
-<!-- 播放列表组件 -->
+<!-- 播放历史组件 -->
 <script lang="ts" setup>
-import { playListOpen, playList } from '@renderer/mod/playingList/playingList';
+import { historyOpen } from './playingList';
 import PlaySvg from '@renderer/components/svg/Play.vue';
 import PauseSvg from '@renderer/components/svg/Pause.vue';
-import { musicKey, musicPlayer } from '@renderer/mod/playing/playing';
+import { musicKey, musicPlayer, compareMusic } from '@renderer/mod/playing/playing';
 import FavoriteButton from '@renderer/components/FavoriteButton.vue';
 import AddMusicCollectionSvg from '@renderer/components/svg/AddMusicCollection.vue';
 import ImgDiv from '@renderer/components/ImgDiv.vue';
 import PlayerInfoTag from '@renderer/components/PlayerInfoTag.vue';
 import AddToPlayList from '../popUp/popUps/AddToPlayList.vue';
 import { openPopUpComponent } from '@renderer/mod/popUp/popUp';
-import TrashSvg from '@renderer/components/svg/Trash.vue';
+import { historyStorage } from '@renderer/storage/historyStorage';
 
 function clickItemIcon(index: number) {
-    // 如果点击的不是当前的音乐，就切换音乐
-    if (playList.currentIndex != index) {
-        playList.setCurrentIndex(index);
+    const music = historyStorage.list[index];
+    // 如果点击的是当前的音乐
+    if (compareMusic(musicPlayer.currentMusic, music)) {
+        if (musicPlayer.playing) {
+            musicPlayer.requestPause();
+        } else {
+            musicPlayer.requestPlay();
+        }
         return;
     }
-    // 如果是当前音乐则播放或者暂停
-    if (musicPlayer.playing) {
-        musicPlayer.requestPause();
-    } else {
-        musicPlayer.requestPlay();
-    }
+    // 否则直接播放该历史音乐
+    musicPlayer.setCurrentMusic(music);
+    musicPlayer.requestPlay();
+}
+
+function clearHistory() {
+    historyStorage.clearHistory();
 }
 
 </script>
 <template>
     <div>
         <!-- 后面的遮罩，点击关闭 -->
-        <div class="play-list-bc" v-if="playListOpen" @click="playListOpen = false"></div>
+        <div class="play-list-bc" v-if="historyOpen" @click="historyOpen = false"></div>
         <!-- 播放列表主体 -->
         <Transition>
-            <div class="play-list-box" v-if="playListOpen">
+            <div class="play-list-box" v-if="historyOpen">
                 <!-- 标题 -->
                 <div class="title">
-                    <div class="title-left">播放列表</div>
-                    <div class="title-right"></div>
+                    <div class="title-left">播放历史 ({{ historyStorage.list.length }})</div>
+                    <div class="title-right">
+                        <span class="clear-btn" @click="clearHistory">清空</span>
+                    </div>
                 </div>
                 <!-- 列表 -->
                 <div class="list">
+                    <div class="empty-hint" v-if="historyStorage.list.length === 0">
+                        暂无播放历史
+                    </div>
                     <!-- 列表中的每个项 -->
-                    <div class="item-box" :class="{ paying: index == playList.currentIndex }"
-                        v-for="music, index of playList.list" :key="musicKey(music)">
-                        <!-- 删除该歌曲 -->
-                        <div class="delete-btn" title="从播放列表中移除" @click.stop="playList.remove(index)">
-                            <TrashSvg class="delete-icon" />
-                        </div>
+                    <div class="item-box" :class="{ paying: compareMusic(music, musicPlayer.currentMusic) }"
+                        v-for="music, index of historyStorage.list" :key="musicKey(music) + index">
                         <!-- 图标 -->
                         <div class="icon" @click="clickItemIcon(index)">
-                            <!-- TODO 图片显示 -->
                             <ImgDiv class="icon-img" :src="music.iconUrl"></ImgDiv>
                             <!-- hover -->
                             <div class="item-icon-hover"></div>
                             <!-- 暂停图标 -->
                             <PauseSvg class="item-icon-svg"
-                                v-if="index == playList.currentIndex && musicPlayer.playing">
+                                v-if="compareMusic(music, musicPlayer.currentMusic) && musicPlayer.playing">
                             </PauseSvg>
                             <!-- 播放图标 -->
                             <PlaySvg class="item-icon-svg" v-else></PlaySvg>
@@ -85,6 +91,22 @@ function clickItemIcon(index: number) {
     </div>
 </template>
 <style scoped>
+.clear-btn {
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--color-primary-text2);
+}
+.clear-btn:hover {
+    color: var(--color-primary);
+}
+
+.empty-hint {
+    text-align: center;
+    color: var(--color-primary-text2);
+    margin-top: 2rem;
+    font-size: 0.9rem;
+}
+
 .button-grep-button:hover {
     color: var(--color-play-list-item-button-grep-button-hover);
 }
@@ -104,28 +126,6 @@ function clickItemIcon(index: number) {
     display: none;
     gap: 0.5rem;
     align-items: center;
-}
-
-.delete-icon {
-    width: 1.2rem;
-    height: 1.2rem;
-}
-
-.delete-btn {
-    display: none;
-    cursor: pointer;
-    color: var(--color-music-player-accent, #fb7299);
-    margin-right: 0.3rem;
-    margin-left: -0.4rem;
-}
-
-.delete-btn:hover {
-    color: #ff4777;
-    transform: scale(1.1);
-}
-
-.item-box:hover .delete-btn {
-    display: block;
 }
 
 .icon-img {

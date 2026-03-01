@@ -14,11 +14,27 @@ const the_song = ref<string>('');
 const musicPlayerLink = props.musicPlayerLink;
 const musicData: Ref<EmoMusicData> = computed(() => paresEmoMusicData(musicPlayerLink.currentMusicData));
 
+// Add failsafe timeout for song loading
+const loadTimeout = setTimeout(() => {
+    console.error('[EmoMusicPlayer] Timeout loading song URL');
+    musicPlayerLink.updateLoading(false);
+    musicPlayerLink.updatePlaying(false);
+}, 3000);
 
 song_url_v1({ id: musicData.value.id, level: SoundQualityType.standard }).then((res) => {
-    musicPlayerLink.updateDuration(res.body.data[0].time);
-    let songs = res.body.data[0].url
-    the_song.value = songs;
+    clearTimeout(loadTimeout);
+    if (res?.body?.data?.[0]?.url) {
+        musicPlayerLink.updateDuration(res.body.data[0].time);
+        the_song.value = res.body.data[0].url;
+    } else {
+        musicPlayerLink.updateLoading(false);
+        musicPlayerLink.updatePlaying(false);
+    }
+}).catch((err) => {
+    clearTimeout(loadTimeout);
+    console.error('[EmoMusicPlayer] Failed to load song URL', err);
+    musicPlayerLink.updateLoading(false);
+    musicPlayerLink.updatePlaying(false);
 });
 
 const playing = ref(true);
@@ -34,11 +50,13 @@ musicPlayerLink.updateContrMaxDisplay({
 
 // 播放
 musicPlayerLink.onRequestPlay(() => {
+    playing.value = true;
     audio.value?.play();
 });
 
 // 暂停
 musicPlayerLink.onRequestPause(() => {
+    playing.value = false;
     audio.value?.pause();
 });
 // 设置音量
@@ -81,18 +99,29 @@ onMounted(() => {
     });
     audio.value!.addEventListener('canplay', () => {
         musicPlayerLink.updateLoading(false);
-        audio.value?.play();
+        if (playing.value) {
+            audio.value?.play();
+        }
     });
     audio.value!.volume = musicPlayerLink.volume;
-
-    // 实现背景色的渐变
-    const colorThief = new colorthief();
-    const colors = colorThief.getPalette(the_url.value, 2);
-    const [c11, c22] = colors!.map((c) => `rgb(${c[0]},${c[1]},${c[2]})`) // 解构出三组rgb
-    c1.value = c11;
-    c2.value = c22;
     scrollToCurrentLyric();
 })
+
+// 实现背景色的渐变，必须等待图片加载完毕再调用，否则可能死循环或抛出异常锁死主线程
+const onImageLoad = () => {
+    try {
+        if (!the_url.value) return;
+        const colorThief = new colorthief();
+        const colors = colorThief.getPalette(the_url.value, 2);
+        if (colors && colors.length >= 2) {
+            const [c11, c22] = colors.map((c) => `rgb(${c[0]},${c[1]},${c[2]})`);
+            c1.value = c11;
+            c2.value = c22;
+        }
+    } catch (e) {
+        console.error('[EmoMusicPlayer] Failed to extract palette', e);
+    }
+};
 
 // 左下框的宽度
 musicPlayerLink.updateButtomWidth("5.5rem");
@@ -101,9 +130,20 @@ musicPlayerLink.updateButtomWidth("5.5rem");
 //-----------------------------------歌词-----------------------------------
 // 获取歌词
 const parsedLyrics = ref<ReturnType<typeof parseYrc>>([]);
+
+const lyricTimeout = setTimeout(() => {
+    console.error('[EmoMusicPlayer] Timeout loading lyrics');
+}, 3000);
+
 lyric({ id: musicData.value.id }).then((res) => {
-    parsedLyrics.value = parseYrc(res.body.lrc.lyric);
-    console.log(parsedLyrics.value);
+    clearTimeout(lyricTimeout);
+    if (res?.body?.lrc?.lyric) {
+        parsedLyrics.value = parseYrc(res.body.lrc.lyric);
+        console.log(parsedLyrics.value);
+    }
+}).catch((err) => {
+    clearTimeout(lyricTimeout);
+    console.error('[EmoMusicPlayer] Failed to load lyrics', err);
 });
 const currentIndex = computed(() => {
     for (let i = 0; i < parsedLyrics.value.length; i++) {
@@ -141,8 +181,13 @@ const updateCurrentTime = (time: number) => {
       scrollToCurrentLyric();
     };
 
-watch(currentIndex, () => {
+watch(currentIndex, (idx) => {
     scrollToCurrentLyric();
+    // Send to desktop lyrics overlay
+    if (idx >= 0 && idx < parsedLyrics.value.length) {
+        const text = parsedLyrics.value[idx].text;
+        window.electron?.ipcRenderer.invoke('desktop-lyrics-update-text', text);
+    }
 });
 
 </script>
@@ -150,7 +195,7 @@ watch(currentIndex, () => {
     <div class="all">
         <audio :src="the_song" ref="audio"></audio>
         <img class="main" :class="[{ playing: playing }, musicPlayerLink.musicPlayerSize]"
-            :src="musicPlayerLink.currentMusic?.iconUrl" ref="the_url">
+            :src="musicPlayerLink.currentMusic?.iconUrl" ref="the_url" @load="onImageLoad">
         </img>
         <div v-if="musicPlayerLink.musicPlayerSize == 'max'" class="max-paper">
             <div class="big-left">

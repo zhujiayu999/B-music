@@ -3,10 +3,18 @@ import Nav from './mod/nav/Nav.vue';
 import Content from './mod/content/Content.vue';
 import { musicPlayer, musicPlayerSize } from './mod/playing/playing';
 import PlayingList from './mod/playingList/PlayingList.vue';
+import HistoryList from './mod/playingList/HistoryList.vue';
 import Notification from './mod/notification/Notification.vue';
 import Playing from './mod/playing/Playing.vue';
 import TopBar from './mod/topBar/TopBar.vue';
 import PopUp from './mod/popUp/PopUp.vue';
+import { onMounted } from 'vue';
+
+onMounted(() => {
+    const bright = localStorage.getItem('bmusic-bright') || 'light';
+    const accent = localStorage.getItem('bmusic-accent') || 'orange';
+    document.documentElement.setAttribute('data-theme', `${bright}-${accent}`);
+});
 
 </script>
 
@@ -22,6 +30,8 @@ import PopUp from './mod/popUp/PopUp.vue';
     <Playing v-if="musicPlayer.currentMusic" class="main-music-player" />
     <!-- 右侧播放列表 -->
     <PlayingList />
+    <!-- 右侧播放历史 -->
+    <HistoryList />
 
     <!-- 弹出组件 -->
     <PopUp />

@@ -10,28 +10,113 @@ body {
 }
 
 :root {
-  /* 上方区域 */
   --top-bar-height: 3rem;
-  /* 左侧导航栏宽度 */
   --left-vav-width: 12rem;
-  /* 底部播放器高度 */
   --button-player-height: 5rem;
 }
 
-:root {
-  /* 主题色1 两种颜色相互搭配 */
-  --color-primary: #EE7755;
-  --color-primary-with: #FEEBC0;
-  /* 主题色2 用于主题色1的变化*/
-  --color-primary2: #e9623d;
+/* ============================================================
+ * THEME FOUNDATION TOKENS
+ * Each [data-theme] block overrides the foundation palette.
+ * All semantic tokens below reference these via var().
+ * ============================================================ */
 
-  --color-primary-bg: white;
+/* ---- Light mode (default + all light-* accents) ---- */
+:root,
+[data-theme^="light-"] {
+  --color-primary-bg: #ffffff;
   --color-primary-bg2: #f5f5f5;
-  --color-primary-text: black;
+  --color-primary-text: #1a1a1a;
   --color-primary-text2: #646464;
   --color-primary-boder: #e5e5e5;
   --color-primary-shadow: #d3d3d3;
+  --top-bar-button-hover-bg-color: #f2f2f2;
+  --color-primary-nav-hover-bg: #ededed;
+  --color-universal-button-other-bgc: #f5f5f5;
+  --color-universal-button-other-bgc-hover: #ededed;
+}
 
+/* ---- Dark mode ---- */
+[data-theme^="dark-"] {
+  --color-primary-bg: #1e1e2e;
+  --color-primary-bg2: #2a2a3e;
+  --color-primary-text: #e8e8f0;
+  --color-primary-text2: #9999bb;
+  --color-primary-boder: #3a3a55;
+  --color-primary-shadow: #0a0a15;
+  --top-bar-button-hover-bg-color: #2a2a3e;
+  --color-primary-nav-hover-bg: #2f2f47;
+  --color-universal-button-other-bgc: #2a2a3e;
+  --color-universal-button-other-bgc-hover: #333350;
+}
+
+/* ---- Noir (OLED pure black) ---- */
+[data-theme^="noir-"] {
+  --color-primary-bg: #0d0d0d;
+  --color-primary-bg2: #181818;
+  --color-primary-text: #f0f0f0;
+  --color-primary-text2: #888888;
+  --color-primary-boder: #2a2a2a;
+  --color-primary-shadow: #050505;
+  --top-bar-button-hover-bg-color: #222222;
+  --color-primary-nav-hover-bg: #1e1e1e;
+  --color-universal-button-other-bgc: #222222;
+  --color-universal-button-other-bgc-hover: #2a2a2a;
+}
+
+/* ---- Accent: orange (default) ---- */
+:root,
+[data-theme$="-orange"] {
+  --color-primary: #EE7755;
+  --color-primary-with: #FEEBC0;
+  --color-primary2: #e9623d;
+  --color-primary-nav-active-text: #FEEBC0;
+}
+
+/* ---- Accent: red ---- */
+[data-theme$="-red"] {
+  --color-primary: #e33535;
+  --color-primary-with: #ffe3e3;
+  --color-primary2: #c92424;
+  --color-primary-nav-active-text: #fff0f0;
+}
+
+/* ---- Accent: pink (Bilibili) ---- */
+[data-theme$="-pink"] {
+  --color-primary: #fb7299;
+  --color-primary-with: #ffe8ef;
+  --color-primary2: #e05b80;
+  --color-primary-nav-active-text: #fff0f5;
+}
+
+/* ---- Accent: blue ---- */
+[data-theme$="-blue"] {
+  --color-primary: #4d9df6;
+  --color-primary-with: #dceeff;
+  --color-primary2: #3d8cef;
+  --color-primary-nav-active-text: #f0f7ff;
+}
+
+/* ---- Accent: green ---- */
+[data-theme$="-green"] {
+  --color-primary: #4caf50;
+  --color-primary-with: #e8f5e9;
+  --color-primary2: #43a047;
+  --color-primary-nav-active-text: #f0fff1;
+}
+
+/* ---- Accent: purple ---- */
+[data-theme$="-purple"] {
+  --color-primary: #9c6fda;
+  --color-primary-with: #ede0ff;
+  --color-primary2: #7b52bf;
+  --color-primary-nav-active-text: #f5f0ff;
+}
+
+/* ============================================================
+ * SEMANTIC TOKENS — map to foundation tokens only
+ * ============================================================ */
+:root {
   /* 顶端窗口栏 */
   --top-bar-btn-color: var(--color-primary-text2);
   --top-bar-btn-hover-color: var(--color-primary-text);
@@ -48,34 +133,29 @@ body {
   /* 顶部按钮 */
   --top-bar-button-color: var(--color-primary-text2);
   --top-bar-button-hover-color: var(--color-primary-text);
-  --top-bar-button-hover-bg-color: #f2f2f2;
-
 
   /* 导航栏颜色 */
   --color-primary-nav-hover-text: var(--color-primary-text);
-  --color-primary-nav-hover-bg: #ededed;
-  --color-primary-nav-active-text: var(--color-primary-with);
   --color-primary-nav-active-bg: var(--color-primary);
 
   /* 列表颜色 */
-  --color-primary-list-hover-bg: #f2f2f2;
+  --color-primary-list-hover-bg: var(--color-primary-nav-hover-bg);
   --color-primary-list-hover-text: var(--color-primary-text);
   --color-primary-list-active-text: var(--color-primary);
 
-  /* 组要按钮颜色 */
+  /* 主要按钮颜色 */
   --color-primary-button: var(--color-primary);
   --color-primary-button-text: var(--color-primary-with);
   --color-primary-button-hover: var(--color-primary2);
 
-  /** 无字小按钮颜色 */
+  /* 无字小按钮颜色 */
   --color-primary-button-small: var(--color-primary-text2);
   --color-primary-button-small-hover: var(--color-primary-text);
-
 
   /* 窗口颜色 */
   --color-window-bg: var(--color-primary-bg);
 
-  /** 左侧导航栏 */
+  /* 左侧导航栏 */
   --color-lav-bg: var(--color-primary-bg2);
   --color-nav-scrollbar-thumb: var(--color-primary-boder);
   --color-nav-font: var(--color-primary-text2);
@@ -88,28 +168,23 @@ body {
   --color-nav-item-drag-bg: var(--color-lav-bg);
   --color-nav-item-drag-border-line: var(--color-primary-text2);
 
-  /** 底部播放器 */
+  /* 底部播放器 */
   --color-music-player-bg: var(--color-primary-bg);
   --color-music-player-border: var(--color-primary-boder);
   --color-music-player-bg-fixe: unset;
-  /** 播放进度条 */
+
+  /* 播放进度条 */
   --color-contr-line-bg: var(--color-primary-boder);
   --color-contr-line-current-bg: var(--color-primary);
   --color-contr-line-btn-bg: var(--color-primary-bg);
   --color-contr-line-btn-shadow: var(--color-primary-shadow);
-  /* 播放器进度条左右的小字,当进度条显示在中间的时候两边的时间 */
   --color-contr-line-text: var(--color-primary-text2);
-  /* 进度条显示在上方时，右边显示的时间 */
   --color-music-player-right-time: var(--color-primary-text2);
-  /* 播放器暂停播放按钮颜色 */
   --color-contr-play-btn: var(--color-primary-button);
   --color-contr-play-btn-hover: var(--color-primary-button-hover);
-  /* 中间文字颜色 */
   --color-contr-play-btn-text: var(--color-primary-button-text);
-  /* 上一首和下一首按钮颜色 */
   --color-contr-prev-next-btn: var(--color-primary-button-small);
   --color-contr-prev-next-btn-hover: var(--color-primary-button-small-hover);
-  /* 播放顺序按钮颜色 */
   --color-contr-play-mode-btn: var(--color-primary-button-small);
   --color-contr-play-mode-btn-hover: var(--color-primary-button-small-hover);
 
@@ -132,7 +207,7 @@ body {
   --color-music-player-right-button: var(--color-primary-button-small);
   --color-music-player-right-button-hover: var(--color-primary-button-small-hover);
 
-  /* 播放器右下角音量放条颜色*/
+  /* 播放器右下角音量条颜色 */
   --color-music-player-volume-line-box: var(--color-window-bg);
   --color-music-player-volume-line-box-shadow: var(--color-primary-shadow);
   --color-music-player-volume-num: var(--color-primary-text2);
@@ -153,14 +228,12 @@ body {
   --color-play-list-item-button-grep-button: var(--color-primary-button-small);
   --color-play-list-item-button-grep-button-hover: var(--color-primary-button-small-hover);
 
-
   /* 歌单顶部信息栏 */
-  --color-pay-list-header-title-font: #000000;
+  --color-pay-list-header-title-font: var(--color-primary-text);
   --color-play-edit-button: var(--color-primary-button-small);
   --color-play-edit-button-hover: var(--color-primary-button-small-hover);
-
-  --color-pay-list-header-description-font: #4f4f4f;
-  --color-pay-list-header-author-font: #4f4f4f;
+  --color-pay-list-header-description-font: var(--color-primary-text2);
+  --color-pay-list-header-author-font: var(--color-primary-text2);
   --color-play-button-bg: var(--color-primary-button);
   --color-play-button-font: var(--color-primary-button-text);
   --color-play-button-hover-bg: var(--color-primary-button-hover);
@@ -177,11 +250,9 @@ body {
   --color-pay-list-line-content-info-icon-mask-bg: #5c5c5c47;
   --color-pay-list-line-content-info-icon-mask-icon: #ffffff;
   --color-pay-list-line-content-info-name-font-playing: var(--color-primary-nav-active-bg);
-  /* 拖动排序歌单列表 */
   --color-pay-list-drag-item-bg: var(--color-primary-bg);
   --color-pay-list-drag-item-border: var(--color-primary-boder);
   --color-pay-list-drag-item-border-line: var(--color-primary-text2);
-
 
   /* 全部的喜欢按钮 */
   --color-pay-list-favorite-icon: var(--color-primary-button-small);
@@ -189,8 +260,7 @@ body {
   --color-pay-list-favorite-icon-liked: var(--color-primary);
   --color-pay-list-favorite-icon-liked-hover: var(--color-primary2);
 
-
-  /* 添加到播放列表窗口 创建新歌单窗口 */
+  /* 添加到播放列表窗口 */
   --color-add-to-play-list-box-bg: var(--color-primary-bg);
   --color-add-to-play-list-box-shadow: var(--color-primary-shadow);
   --color-add-to-play-list-box-title: var(--color-primary-text);
@@ -200,25 +270,22 @@ body {
   --color-add-to-play-list-box-list-name-create: var(--color-primary-text2);
   --color-add-to-play-list-box-list-icon-msk-create: #5c5c5c47;
 
-  /* 编辑歌单信息 */
+  /* 编辑歌单/音乐信息 */
   --edit-play-list-lnfo-title-color: var(--color-primary-text);
   --edit-play-list-lnfo-title-smell-color: var(--color-primary-text);
   --edit-play-list-icon-input-text-color: #ffffff;
   --edit-play-list-icon-input-bg-hover-color: #00000064;
-
-  /* 编辑音乐信息 */
   --edit-music-lnfo-title-color: var(--color-primary-text);
   --edit-music-lnfo-title-smell-color: var(--color-primary-text);
   --edit-music-icon-input-text-color: #ffffff;
   --edit-music-icon-input-bg-hover-color: #00000064;
-
 
   /* 图片编辑器 */
   --edit-img-bg-color: var(--color-primary-bg);
   --edit-img-shadow-color: var(--color-primary-shadow);
   --edit-img-title-color: var(--color-primary-text);
 
-  /* 右上角消息弹出框 */
+  /* 消息弹出框 */
   --tip-color-success: #67c23a;
   --tip-color-error: #f56c6c;
   --notification-bgc: var(--color-primary-bg);
@@ -226,10 +293,7 @@ body {
 
   /* 通用按钮 */
   --color-universal-button-other-text: var(--color-primary-text);
-  --color-universal-button-other-bgc: #f5f5f5;
-  --color-universal-button-other-bgc-hover: #ededed;
   --color-universal-button-other-border: var(--color-primary-boder);
-
   --color-universal-ok-butto-text: var(--color-primary-button-text);
   --color-universal-ok-button-bgc: var(--color-primary-button);
   --color-universal-ok-button-bgc-hover: var(--color-primary-button-hover);
@@ -241,9 +305,7 @@ body {
   --universal-input-bg-color: var(--color-primary-bg2);
   --universal-input-border-color-focus: var(--color-primary);
 
-
   /* 搜索页面 */
-  --universal-input-border-color: var(--color-primary-boder);
   --universal-search-item-text-color: var(--color-primary-text2);
   --universal-search-item-text-color-on: var(--color-primary-text);
   --universal-search-item-text-border-bottom-color-on: var(--color-primary);
@@ -251,5 +313,4 @@ body {
   /* 确认弹出框 */
   --confirm-box-title-color: var(--color-primary-text);
   --confirm-box-content-color: var(--color-primary-text2);
-
 }

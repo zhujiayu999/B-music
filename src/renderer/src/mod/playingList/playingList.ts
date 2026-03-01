@@ -2,7 +2,17 @@
 import { computed, readonly, Ref, ref, watch } from "vue";
 import { compareMusic, Music, musicPlayer } from "../playing/playing";
 
+const electron = window.electron;
+
 export const playListOpen = ref(false);
+export const historyOpen = ref(false);
+
+watch(playListOpen, (val) => {
+    if (val) historyOpen.value = false;
+});
+watch(historyOpen, (val) => {
+    if (val) playListOpen.value = false;
+});
 
 
 // 播放模式 RepeatOne: 单曲循环 RepeatAll: 列表循环 SequentialPlay: 顺序播放 ShufflePlay: 随机播放
@@ -25,11 +35,46 @@ watch(() => musicPlayer.currentMusic, () => {
 });
 
 //如果当前列表音乐变化则更新musicPlayer
+let isFirstLoad = true;
 watch([currentIndex, list], () => {
+    if (localStorage.getItem('bmusic-remember-progress') !== 'false') {
+        localStorage.setItem('bmusic-saved-playlist', JSON.stringify(list.value));
+        localStorage.setItem('bmusic-saved-index', String(currentIndex.value));
+    }
+
     if (currentMusic.value) {
         musicPlayer.setCurrentMusic(currentMusic.value);
+        if (isFirstLoad) {
+            isFirstLoad = false;
+            // Force disable auto-play as requested by the user, overwriting any previous cached true value
+            localStorage.setItem('bmusic-auto-play', 'false');
+
+            // First load: respect autoPlay setting (which is now guaranteed false)
+            if (localStorage.getItem('bmusic-auto-play') !== 'true') {
+                setTimeout(() => {
+                    musicPlayer.requestPause();
+                }, 100);
+            }
+        }
     }
 });
+
+// Load saved playing list and index on startup if setting is enabled
+if (localStorage.getItem('bmusic-remember-progress') !== 'false') {
+    try {
+        const savedListStr = localStorage.getItem('bmusic-saved-playlist');
+        if (savedListStr) {
+            const savedList = JSON.parse(savedListStr);
+            if (Array.isArray(savedList) && savedList.length > 0) {
+                list.value = savedList;
+            }
+        }
+        const savedIndex = localStorage.getItem('bmusic-saved-index');
+        if (savedIndex) {
+            currentIndex.value = parseInt(savedIndex, 10);
+        }
+    } catch { }
+}
 
 
 
@@ -56,6 +101,26 @@ watch(() => musicPlayer.ended, (ended) => {
     }
 });
 
+// Setup desktop lyrics IPC listeners
+if (electron && electron.ipcRenderer) {
+    electron.ipcRenderer.on('desktop-lyrics-action', (_event, action: string) => {
+        if (action === 'prev') {
+            playList.prev();
+        } else if (action === 'next') {
+            playList.next();
+        } else if (action === 'play-pause') {
+            if (musicPlayer.playing) musicPlayer.requestPause();
+            else musicPlayer.requestPlay();
+        } else if (action === 'close-click') {
+            // Also update the UI state if needed, handled by storage sync normally
+        }
+    });
+
+    // Notify desktop lyrics window about play/pause state
+    watch(() => musicPlayer.playing, (playing) => {
+        electron.ipcRenderer.invoke('desktop-lyrics-playing-state-sync', playing);
+    });
+}
 
 export const playList = readonly({
     open: playListOpen,
@@ -75,6 +140,45 @@ export const playList = readonly({
     /** 设置播放模式 */
     setPlayMode(mode: PlayMode) {
         playMode.value = mode;
+    },
+    /** 从播放列表移除一首歌 */
+    remove(index: number) {
+        if (index < 0 || index >= list.value.length) return;
+
+        // 如果删除的是当前正在播放的歌曲
+        if (currentIndex.value === index) {
+            if (list.value.length === 1) {
+                musicPlayer.requestPause();
+                list.value.splice(index, 1);
+                currentIndex.value = -1;
+                return;
+            } else {
+                const wasPlaying = musicPlayer.playing;
+                musicPlayer.requestPause();
+                list.value.splice(index, 1);
+                // 如果删除的是最后一首，下一首就是开头
+                if (index === list.value.length) {
+                    currentIndex.value = 0;
+                }
+                if (wasPlaying) {
+                    musicPlayer.requestPlay();
+                } else {
+                    // 只需重置音乐
+                    musicPlayer.setCurrentMusic(list.value[currentIndex.value]);
+                }
+                return;
+            }
+        }
+
+        // 删除当前播放之前的歌曲，需把 currentIndex 前移保持对齐
+        if (index < currentIndex.value) {
+            list.value.splice(index, 1);
+            currentIndex.value--;
+            return;
+        }
+
+        // 删除当前播放之后的歌曲
+        list.value.splice(index, 1);
     },
     /**  下一曲,如果到最后一首则从第一首开始 */
     next() {
@@ -96,6 +200,17 @@ export const playList = readonly({
             musicPlayer.requestPlay();
         }
     },
+    /** 将单曲添加到播放列表并播放 */
+    addAndPlay(music: Music) {
+        const index = list.value.findIndex(m => compareMusic(m, music));
+        if (index >= 0) {
+            currentIndex.value = index;
+        } else {
+            list.value.push(music);
+            currentIndex.value = list.value.length - 1;
+        }
+        musicPlayer.requestPlay();
+    }
 });
 
 // @ts-ignorev TODO 测试用到时候删除
