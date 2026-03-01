@@ -11,8 +11,30 @@ const currentPercentage = computed(() => musicPlayer.currentTime / Math.max(1, m
 const lineCilckEl = ref();
 /** 拖动进度条 */
 const isMosueDown = ref(false);
+/** 鼠标 hover 在状态 */
+const isHover = ref(false);
+/** hover 位置百分比 */
+const hoverPercentage = ref(0);
 /** 用于当前显示的进度条百分比 */
 const shwoCurrentPercentage = computed(() => isMosueDown.value ? dragCurrentPercentage.value : currentPercentage.value);
+
+/** 格式化时间 mm:ss */
+function formatTime(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/** hover 时间文字 */
+const hoverTimeText = computed(() => {
+    const p = isMosueDown.value ? dragCurrentPercentage.value : hoverPercentage.value;
+    return formatTime(musicPlayer.duration * p);
+});
+const hoverTooltipLeft = computed(() => {
+    const p = isMosueDown.value ? dragCurrentPercentage.value : hoverPercentage.value;
+    return `${p * 100}%`;
+});
 
 /**
  * 计算出应该跳转到的时间并更新
@@ -44,9 +66,16 @@ function mosueDown(event: MouseEvent) {
     updateCurrentPercentage(event);
 }
 
+function onMouseMove(event: MouseEvent) {
+    const rect = (lineCilckEl.value as HTMLElement).getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    hoverPercentage.value = Math.min(1, Math.max(0, x / rect.width));
+}
+
 </script>
 <template>
-    <div class="line-cilck" :class="{ mosueuse: isMosueDown }" @mousedown="mosueDown" ref="lineCilckEl">
+    <div class="line-cilck" :class="{ mosueuse: isMosueDown }" @mousedown="mosueDown" ref="lineCilckEl"
+         @mouseenter="isHover = true" @mouseleave="isHover = false" @mousemove="onMouseMove">
         <div class="line-box">
             <!-- 完整进度条 -->
             <div class="line-box-duration"></div>
@@ -54,13 +83,33 @@ function mosueDown(event: MouseEvent) {
             <div class="line-box-current"></div>
             <!-- 中间的按钮 -->
             <div class="line-box-button"></div>
+            <!-- 时间提示气泡 -->
+            <div class="line-tooltip" v-if="(isHover || isMosueDown) && musicPlayer.duration > 0">
+                {{ hoverTimeText }}
+            </div>
         </div>
     </div>
 </template>
 <style scoped>
+.line-tooltip {
+    position: absolute;
+    left: v-bind(hoverTooltipLeft);
+    transform: translateX(-50%);
+    bottom: calc(100% + 0.5rem);
+    background-color: var(--color-contr-line-btn-bg, #333);
+    color: var(--color-contr-line-btn-shadow, #fff);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.3rem;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
 .line-cilck:hover .line-box-button,
 .line-cilck.mosueuse .line-box-button {
     opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
 }
 
 .line-box-button {
@@ -68,12 +117,13 @@ function mosueDown(event: MouseEvent) {
     position: absolute;
     left: v-bind("`${shwoCurrentPercentage * 100}%`");
     top: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(0.5);
     aspect-ratio: 1;
     height: 250%;
     border-radius: 50%;
     background-color: var(--color-contr-line-btn-bg);
-    box-shadow: 0rem 0.1rem 0.3rem var(--color-contr-line-btn-shadow)
+    box-shadow: 0rem 0.1rem 0.3rem var(--color-contr-line-btn-shadow);
+    transition: opacity 0.15s, transform 0.15s;
 }
 
 .line-box-current {
@@ -84,6 +134,11 @@ function mosueDown(event: MouseEvent) {
     width: v-bind("`${shwoCurrentPercentage * 100}%`");
     background-color: var(--color-contr-line-current-bg);
     border-radius: 1rem;
+    transition: background-color 0.15s;
+}
+
+.line-cilck.mosueuse .line-box-current {
+    filter: brightness(1.15);
 }
 
 .line-box-duration {
@@ -98,15 +153,20 @@ function mosueDown(event: MouseEvent) {
 
 .line-cilck {
     height: 0.5rem;
-    /* margin: 0 0.5rem; */
     display: flex;
     align-items: center;
     cursor: pointer;
 }
 
+.line-cilck:hover .line-box,
+.line-cilck.mosueuse .line-box {
+    height: 0.35rem;
+}
+
 .line-box {
     width: 100%;
-    height: 100%;
+    height: 0.2rem;
     position: relative;
+    transition: height 0.15s ease;
 }
 </style>

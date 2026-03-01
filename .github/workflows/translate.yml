@@ -1,0 +1,22 @@
+name: Auto Translate README
+
+on:
+  push:
+    branches:
+      - app-master
+    paths:
+      - 'README.md'
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Auto Translate README
+        uses: Lin-jun-xiang/action-translate-readme@v1
+        with:
+          token: ${{ github.token }}
+          langs: en
+          output_file: README_en.md

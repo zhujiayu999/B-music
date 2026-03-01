@@ -210,8 +210,27 @@ export const playList = readonly({
             currentIndex.value = list.value.length - 1;
         }
         musicPlayer.requestPlay();
+    },
+    /** 下一首播放：将歌曲插入到当前播放之后 */
+    addNext(music: Music) {
+        // 如果已在列表中，先移除
+        const existIdx = list.value.findIndex(m => compareMusic(m, music));
+        if (existIdx >= 0) {
+            // 已经是下一首了，不需要操作
+            if (existIdx === currentIndex.value + 1) return;
+            list.value.splice(existIdx, 1);
+            if (existIdx < currentIndex.value) {
+                currentIndex.value--;
+            }
+        }
+        // 插入到当前播放的下一个位置
+        if (currentIndex.value >= 0 && currentIndex.value < list.value.length) {
+            list.value.splice(currentIndex.value + 1, 0, music);
+        } else {
+            // 没有正在播放，直接添加并播放
+            list.value.push(music);
+            currentIndex.value = list.value.length - 1;
+            musicPlayer.requestPlay();
+        }
     }
 });
-
-// @ts-ignorev TODO 测试用到时候删除
-window.playList = playList;

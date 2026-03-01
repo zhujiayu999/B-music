@@ -84,26 +84,43 @@ function rightClick(event: MouseEvent, music: Music, index: number) {
             openPopUpComponent(AddToPlayList, { music: music })
         }
     }
-    const buttons = computed<(CustomButton & { divided?: boolean })[]>(() => {
-        return [payButton.value, addToListButton, ...(props.customButtons || [])];
-    });
+
     ContextMenu.showContextMenu(reactive({
         x: event.x,
         y: event.y,
         minWidth: 200,
         items: computed<MenuItem[]>(() => {
-            let button: MenuItem[] = [];
+            let items: MenuItem[] = [];
+            // 播放/暂停
+            items.push({
+                label: payButton.value.title,
+                icon: h(payButton.value.icon, { style: 'width: 1rem; height: 1rem;' }),
+                onClick: () => payButton.value.onClick?.(index)
+            });
+            // 下一首播放
+            items.push({
+                label: '下一首播放',
+                icon: h(PlaySvg, { style: 'width: 1rem; height: 1rem;' }),
+                onClick: () => playList.addNext(music)
+            });
+            // 收藏到歌单
+            items.push({
+                label: addToListButton.title,
+                icon: h(addToListButton.icon, { style: 'width: 1rem; height: 1rem;' }),
+                onClick: () => addToListButton.onClick?.(index),
+                divided: true
+            });
+            // 自定义按钮
             if (props.customButtons) {
-                for (const cbutton of buttons.value) {
-                    button.push({
+                for (const cbutton of props.customButtons) {
+                    items.push({
                         label: cbutton.title,
                         icon: h(cbutton.icon, { style: ['width: 1rem; height: 1rem;', cbutton.style] }),
                         onClick: () => cbutton.onClick?.(index),
-                        divided: cbutton.divided
                     });
                 }
             }
-            return button;
+            return items;
         }),
     }));
 }

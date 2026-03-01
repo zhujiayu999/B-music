@@ -49,11 +49,32 @@ function getSystemConfig(platform: Platform): BrowserWindowConstructorOptions {
 app.commandLine.appendSwitch('disable-http-cache');
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 
+// ---- Window bounds persistence ----
+import { readFileSync, writeFileSync } from 'fs';
+const boundsFile = join(app.getPath('userData'), 'window-bounds.json');
+
+function loadBounds(): { x?: number; y?: number; width: number; height: number } {
+  try {
+    const data = JSON.parse(readFileSync(boundsFile, 'utf-8'));
+    return { x: data.x, y: data.y, width: data.width || 1060, height: data.height || 680 };
+  } catch {
+    return { width: 1060, height: 680 };
+  }
+}
+
+function saveBounds(win: BrowserWindow) {
+  try {
+    const bounds = win.getBounds();
+    writeFileSync(boundsFile, JSON.stringify(bounds));
+  } catch { /* ignore write errors */ }
+}
+
 function createWindow(): void {
+  const savedBounds = loadBounds();
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 1060,
-    height: 680,
+    ...savedBounds,
     minHeight: 680,
     minWidth: 1060,
     show: false,
@@ -68,6 +89,15 @@ function createWindow(): void {
       webSecurity: false,
     }
   })
+
+  // Save window bounds on resize/move (debounced)
+  let boundsTimeout: NodeJS.Timeout | null = null;
+  const debounceSaveBounds = () => {
+    if (boundsTimeout) clearTimeout(boundsTimeout);
+    boundsTimeout = setTimeout(() => saveBounds(mainWindow), 500);
+  };
+  mainWindow.on('resize', debounceSaveBounds);
+  mainWindow.on('move', debounceSaveBounds);
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -110,7 +140,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -121,7 +151,22 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  initDB();
+  const { createdNewDefault } = initDB();
+
+  // If a new default account was just created, immediately capture existing session cookies
+  // so the user's Bilibili/Netease login state is preserved
+  if (createdNewDefault) {
+    try {
+      const cookies = await session.defaultSession.cookies.get({});
+      if (cookies.length > 0) {
+        const cookieJson = JSON.stringify(cookies);
+        updateActiveAccountCookies(cookieJson);
+        console.log(`[Cookie Sync] Migrated ${cookies.length} existing cookies to new default account`);
+      }
+    } catch (e) {
+      console.error('[Cookie Sync] Failed to migrate cookies to default account:', e);
+    }
+  }
 
   // Track Cookie Changes and update SQLite Database
   let cookieSaveTimeout: NodeJS.Timeout | null = null;

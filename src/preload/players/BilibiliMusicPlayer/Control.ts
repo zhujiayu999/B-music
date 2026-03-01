@@ -348,6 +348,7 @@ export async function clickCoin(coinCount: number = 1) {
    * 通过 Bilibili API 获取字幕数据
    * 完全绕过 UI 操作，直接调用 API 获取字幕 JSON
    */
+/*
 async function fetchSubtitleData(): Promise<Array<{ from: number; to: number; content: string }> | null> {
   try {
     // 从页面获取 bvid 和 cid
@@ -395,6 +396,7 @@ async function fetchSubtitleData(): Promise<Array<{ from: number; to: number; co
     return null;
   }
 }
+*/
 
 /**
  * 自动开启字幕 —— API方案不需要操作UI，但保留作为接口兼容

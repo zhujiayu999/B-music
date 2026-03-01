@@ -271,8 +271,7 @@ export const musicPlayer = readonly({
   }
 });
 
-// @ts-ignore TODO 测试用，方便调试，正式发布时删除
-window.musicPlayer = musicPlayer;
+
 
 
 

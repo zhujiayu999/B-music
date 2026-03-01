@@ -1,58 +1,61 @@
-# bmusic
+# BMusic 🎵
 
-## 简单介绍
-一个基于Electron的多平台音乐播放器，目前支持**b站**和**网易云**。
+[English](./README_en.md) | [简体中文](./README.md)
 
-~~目前图标太和界面丑了，打算重新设计设计~~
+一个基于 Electron + Vue 3 + Vite 的多平台背景音乐播放器。支持 **Bilibili** 和 **网易云音乐**。
 
-基础的播放功能已经齐全，勉强能用吧！
+---
 
-### 播放器
-b站音乐左下角会显示小电视
-<img width="2126" height="166" alt="image" src="https://github.com/user-attachments/assets/927a0c4f-69cf-4414-bb60-868bf1974650" />
+## 🌟 新功能特性 (Enhanced)
 
+在最新的版本中，我们（作者: **z7y**）引入了一系列重磅功能增强：
 
+### 🛠️ 核心增强
+- **下一首播放**: 右键菜单一键插队，灵活控制播放顺序。
+- **全局快捷键**: 支持主界面及后台全局快捷键（播放/暂停、上下曲、音量调节、歌词切换）。
+- **系统媒体控制 (SMTC)**: 完美集成 Windows 媒体中心，支持键盘媒体键及系统音量栏控制。
+- **搜索历史**: 自动保存最近 10 条搜索记录，支持快速选择与一键清空。
+- **窗口状态记忆**: 自动记录并恢复上次关闭时的窗口位置与大小。
 
-网易云左下角会显示唱片
-<img width="2118" height="164" alt="image" src="https://github.com/user-attachments/assets/6bca86b1-f610-47fa-8b91-18512f3de09f" />
+### 🎨 体验优化
+- **交互式进度条**: 悬停/拖拽时进度条动态增粗，支持实时时间气泡提示。
+- **Cookie 智能同步**: 账户切换与初始化时自动同步登录状态，告别重复登录。
+- **极致清理**: 移除了所有冗余的调试代码，运行更轻快。
 
+---
 
+## 📸 界面预览
 
-点击左下角就会放大进入全屏播放
+### 播放器面板
+- **B站模式**: 左下角显示标志性小电视。
+  ![image](https://github.com/user-attachments/assets/927a0c4f-69cf-4414-bb60-868bf1974650)
+- **网易云模式**: 左下角优雅唱片动效。
+  ![image](https://github.com/user-attachments/assets/6bca86b1-f610-47fa-8b91-18512f3de09f)
 
-b站播放视频
-<img width="2170" height="1358" alt="image" src="https://github.com/user-attachments/assets/9263c154-cc3c-4ef9-8b1f-83e64c307d43" />
+### 全屏互动
+- 点击左下角切入全屏，B站支持原片视频播放：
+  ![image](https://github.com/user-attachments/assets/9263c154-cc3c-4ef9-8b1f-83e64c307d43)
 
+### 推荐与搜素
+- 全平台搜索支持，多源音乐一网打尽：
+  ![image](https://github.com/user-attachments/assets/c838cb70-25ef-4461-8c60-aadb159df756)
 
-网易云歌词 ~~(这个是真的丑，我以前的室友非要加网易云，我让他自己加，然后就成这个样子了，等我什么时候心情好帮他改一下)~~
-<img width="2176" height="1364" alt="image" src="https://github.com/user-attachments/assets/b1c0671f-cd68-41b2-af0a-a7e156299fd3" />
+---
 
+## 📝 开发初衷
+因为 B 站有许多优秀的音乐区 UP 主，很多精良的翻唱或原创作品在主流音乐软件上难以寻获。**z7y** 因此心血来潮开发了这款软件，旨在为广大音乐爱好者提供最便捷的跨平台收听体验。
 
-### 推荐页
-目前是静态页面，没有推荐功能，后端没开发
-<img width="2120" height="1360" alt="image" src="https://github.com/user-attachments/assets/e053780c-a6ca-4091-aee2-2e2598ce8680" />
+> **注意**: 本软件仅供学习交流使用，请勿用于非法用途。
 
+---
 
-### 歌单页
-不同平台的音乐会显示出来
-<img width="2122" height="1362" alt="image" src="https://github.com/user-attachments/assets/e92f07df-b92e-4bd0-929e-c94442475394" />
+## 👨‍💻 作者
+**z7y**
 
+---
 
+## 🚀 快速开始
 
-### 搜索页
-b站和网易云都可以搜索
-<img width="2122" height="1364" alt="image" src="https://github.com/user-attachments/assets/c838cb70-25ef-4461-8c60-aadb159df756" />
-
-
-## 其他小的无关紧要的东西
-- b站播放作者是可以得到播放量的
-- 因为b站有很多音乐区up，想听他们的音乐但是其他音乐软件上又没有，于是很久之前心血来潮开发一部分，之后放假了去玩了，玩完之后好无聊又想起来了，于是决定继续开发。就算是开发完了也不打算宣传，毕竟这种软件有点属于灰色地带了。
-
-
-
-
-
-
-
-
-
+1. **安装依赖**: `npm install`
+2. **开发模式**: `npm run dev`
+3. **打包构建**: `npm run build:win`

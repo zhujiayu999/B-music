@@ -3,7 +3,7 @@
 import { playListOpen, playList } from '@renderer/mod/playingList/playingList';
 import PlaySvg from '@renderer/components/svg/Play.vue';
 import PauseSvg from '@renderer/components/svg/Pause.vue';
-import { musicKey, musicPlayer } from '@renderer/mod/playing/playing';
+import { musicKey, musicPlayer, type Music } from '@renderer/mod/playing/playing';
 import FavoriteButton from '@renderer/components/FavoriteButton.vue';
 import AddMusicCollectionSvg from '@renderer/components/svg/AddMusicCollection.vue';
 import ImgDiv from '@renderer/components/ImgDiv.vue';
@@ -11,6 +11,8 @@ import PlayerInfoTag from '@renderer/components/PlayerInfoTag.vue';
 import AddToPlayList from '../popUp/popUps/AddToPlayList.vue';
 import { openPopUpComponent } from '@renderer/mod/popUp/popUp';
 import TrashSvg from '@renderer/components/svg/Trash.vue';
+import ContextMenu from '@imengyu/vue3-context-menu';
+import { h } from 'vue';
 
 function clickItemIcon(index: number) {
     // 如果点击的不是当前的音乐，就切换音乐
@@ -26,6 +28,38 @@ function clickItemIcon(index: number) {
     }
 }
 
+function onContextMenu(e: MouseEvent, music: Music, index: number) {
+    e.preventDefault();
+    const isCurrentAndPlaying = index === playList.currentIndex && musicPlayer.playing;
+    ContextMenu.showContextMenu({
+        x: e.x,
+        y: e.y,
+        minWidth: 180,
+        items: [
+            {
+                label: isCurrentAndPlaying ? '暂停' : '播放',
+                icon: h(isCurrentAndPlaying ? PauseSvg : PlaySvg, { style: 'width:1rem;height:1rem;' }),
+                onClick: () => clickItemIcon(index)
+            },
+            {
+                label: '下一首播放',
+                icon: h(PlaySvg, { style: 'width:1rem;height:1rem;' }),
+                onClick: () => playList.addNext(music)
+            },
+            {
+                label: '收藏到歌单',
+                icon: h(AddMusicCollectionSvg, { style: 'width:1rem;height:1rem;' }),
+                onClick: () => openPopUpComponent(AddToPlayList, { music }),
+                divided: true
+            },
+            {
+                label: '从列表移除',
+                icon: h(TrashSvg, { style: 'width:1rem;height:1rem;color:#fb7299;' }),
+                onClick: () => playList.remove(index)
+            }
+        ]
+    });
+}
 </script>
 <template>
     <div>
@@ -43,7 +77,8 @@ function clickItemIcon(index: number) {
                 <div class="list">
                     <!-- 列表中的每个项 -->
                     <div class="item-box" :class="{ paying: index == playList.currentIndex }"
-                        v-for="music, index of playList.list" :key="musicKey(music)">
+                        v-for="music, index of playList.list" :key="musicKey(music)"
+                        @contextmenu="onContextMenu($event, music, index)">
                         <!-- 删除该歌曲 -->
                         <div class="delete-btn" title="从播放列表中移除" @click.stop="playList.remove(index)">
                             <TrashSvg class="delete-icon" />

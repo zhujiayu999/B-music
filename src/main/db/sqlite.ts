@@ -18,13 +18,14 @@ export interface BMusicAccount {
     is_active: number;
 }
 
-export function initDB() {
+export function initDB(): { createdNewDefault: boolean } {
     if (!Database) {
         console.error('[SQLite] better-sqlite3 not available. Account features disabled.');
-        return;
+        return { createdNewDefault: false };
     }
-    if (db) return;
+    if (db) return { createdNewDefault: false };
 
+    let createdNewDefault = false;
     try {
         const dbPath = join(app.getPath('userData'), 'bmusic_accounts.db');
         db = new Database(dbPath);
@@ -43,6 +44,7 @@ export function initDB() {
         const { count } = db.prepare('SELECT COUNT(*) as count FROM accounts').get() as { count: number };
         if (count === 0) {
             db.prepare('INSERT INTO accounts (name, is_active) VALUES (?, ?)').run('默认账户', 1);
+            createdNewDefault = true;
         } else {
             const { activeCount } = db.prepare('SELECT COUNT(*) as activeCount FROM accounts WHERE is_active = 1').get() as { activeCount: number };
             if (activeCount === 0) {
@@ -54,6 +56,7 @@ export function initDB() {
         console.error('[SQLite] initDB error:', e);
         db = null;
     }
+    return { createdNewDefault };
 }
 
 export function getAccounts(): BMusicAccount[] {
