@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type parseYrc } from '@lrc-player/parse';
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 
 const props = defineProps<{
@@ -14,10 +14,16 @@ const findActiveIndex = (currentTime) => {
 };
 
 onMounted(() => {
-  window.addEventListener('timeupdate', (event) => {
-    activeIndex.value = findActiveIndex((event as any).detail);
-  });
+  window.addEventListener('timeupdate', onTimeUpdate);
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener('timeupdate', onTimeUpdate);
+});
+
+function onTimeUpdate(event: Event) {
+    activeIndex.value = findActiveIndex((event as any).detail);
+}
 
 
 </script>

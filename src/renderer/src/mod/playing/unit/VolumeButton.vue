@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
 import { musicPlayer } from '../playing';
 import Volume0Svg from '@renderer/components/svg/Volume0.vue';
 import Volume1Svg from '@renderer/components/svg/Volume1.vue';
@@ -18,7 +18,14 @@ function clickVolume() {
 }
 // 音量拖动条
 const lineCilckEl = ref();
+function cleanupWindowDragListeners() {
+    window.removeEventListener('mousemove', mosueMove);
+    window.removeEventListener('mouseup', mosueUp);
+}
 function updateVolumeLevel(event: MouseEvent) {
+    if (!lineCilckEl.value) {
+        return;
+    }
     const rect = (lineCilckEl.value as HTMLElement).getBoundingClientRect();
     const y = event.clientY - rect.top;
     const height = rect.height;
@@ -28,15 +35,19 @@ function mosueMove(event: MouseEvent) {
     updateVolumeLevel(event);
 }
 function mosueUp(event: MouseEvent) {
-    window.removeEventListener('mousemove', mosueMove);
-    window.removeEventListener('mouseup', mosueUp);
+    cleanupWindowDragListeners();
     updateVolumeLevel(event);
 }
 function mosueDown(event: MouseEvent) {
+    cleanupWindowDragListeners();
     window.addEventListener('mousemove', mosueMove);
     window.addEventListener('mouseup', mosueUp);
     updateVolumeLevel(event);
 }
+
+onBeforeUnmount(() => {
+    cleanupWindowDragListeners();
+});
 
 </script>
 <template>

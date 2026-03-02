@@ -14,9 +14,7 @@ loadPlayList().then(n => playLists.value = n);
 
 /** 保存播放列表排序 */
 async function savePlayListIndex(index: string[]) {
-    for (const i in index) {
-        await ipcPlayListsApi.setPlaylistIndex(index[i], parseInt(i));
-    }
+    await Promise.all(index.map((name, i) => ipcPlayListsApi.setPlaylistIndex(name, i)));
 }
 
 type MusicPlayList = {
@@ -40,8 +38,11 @@ export const playListStorage = readonly({
     playLists: playLists,
     /** 保存一个播放列表 */
     async savePlayList(name: string, musicList: MusicPlayList) {
+        const existed = playLists.value.includes(name);
         await ipcPlayListsApi.savePlaylistData(name, JSON.stringify(musicList));
-        playLists.value = await loadPlayList();
+        if (!existed) {
+            playLists.value = await loadPlayList();
+        }
     },
     /** 读取一个播放列表 */
     async readPlayList(name: string): Promise<MusicPlayList> {
@@ -68,11 +69,11 @@ export const playListStorage = readonly({
     },
     /** 将指定索引的播放列表移动到指定索引 */
     async movePlayList(from: number, to: number) {
-        const value = playLists.value;
+        const value = [...playLists.value];
         const item = value.splice(from, 1)[0];
         value.splice(to, 0, item);
         await savePlayListIndex(value);
-        playLists.value = await loadPlayList();
+        playLists.value = value;
     },
     /** 读取播放列表图标 */
     async readPlayListIconUrl(name: string) {
@@ -81,7 +82,6 @@ export const playListStorage = readonly({
     /** 保存播放列表图标 */
     async savePlayListIconUrl(name: string, data: Uint8Array) {
         await ipcPlayListsApi.savePlaylistIcon(name, data);
-        playLists.value = await loadPlayList();
     },
     /** 按照指定列表顺序重新排序，列表中不存在的歌单排最前面，列表存在但歌单中不存在的则不管 */
     async sortPlayList(nameList: string[]) {
@@ -90,7 +90,7 @@ export const playListStorage = readonly({
         const noList = value.filter(n => !newList.includes(n));
         const newindex = [...noList, ...newList];
         await savePlayListIndex(newindex);
-        playLists.value = await loadPlayList();
+        playLists.value = newindex;
     },
 });
 

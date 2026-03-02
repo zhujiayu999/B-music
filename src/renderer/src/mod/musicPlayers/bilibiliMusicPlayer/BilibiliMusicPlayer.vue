@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { WebviewTag } from 'electron';
-import { computed, h, markRaw, onMounted, onUnmounted, reactive, Ref, ref, toRef, watch } from 'vue';
+import { computed, h, markRaw, onMounted, reactive, Ref, ref, toRef, watch } from 'vue';
 import type { MusicPlayerContrMaxDisplay, MusicPlayerTopBarDisplay, PlayerCustomButton } from '@renderer/mod/playing/playing';
 import ContextMenu from '@imengyu/vue3-context-menu'
 import BxlDevToSvg from '@renderer/components/svg/BxlDevTo.vue';
@@ -8,6 +8,7 @@ import MousePointerSvg from '@renderer/components/svg/MousePointer.vue';
 import CopyOutlineSvg from '@renderer/components/svg/CopyOutline.vue';
 import { ipcBilibiliApi } from "@renderer/ipcApi/ipcBilibiliApi";
 import { MusicPlayerLink } from '../musicPlayers';
+import { usePlayerLifecycle } from '../usePlayerLifecycle';
 import { BilibiliMusicData, paresBilibiliMusicData } from './bilibiliMusic';
 import { putNotification } from '@renderer/mod/notification/notification';
 import BilibiliLikeSvg from './svg/BilibiliLikeSvg.vue';
@@ -19,6 +20,7 @@ const props = defineProps<{
 }>();
 const musicPlayerLink = props.musicPlayerLink;
 const musicPlayerSize = toRef(() => musicPlayerLink.musicPlayerSize);
+const lifecycle = usePlayerLifecycle();
 
 // 播放器数据
 const musicData: Ref<BilibiliMusicData> = computed(() => paresBilibiliMusicData(musicPlayerLink.currentMusicData));
@@ -43,18 +45,18 @@ const playerWebviewReady = ref(false);
 const intendedPlaying = ref(true);
 
 musicPlayerLink.updateButtomWidth('6.5rem');
-musicPlayerLink.onRequestPlay(() => {
+const offRequestPlay = musicPlayerLink.onRequestPlay(() => {
   intendedPlaying.value = true;
   iframeRef.value?.send("play");
 });
-musicPlayerLink.onRequestPause(() => {
+const offRequestPause = musicPlayerLink.onRequestPause(() => {
   intendedPlaying.value = false;
   iframeRef.value?.send("pause");
 });
-musicPlayerLink.onRequestCurrentTime((currentTime: number) => {
+const offRequestCurrentTime = musicPlayerLink.onRequestCurrentTime((currentTime: number) => {
   iframeRef.value?.send("setPlaybackProgress", currentTime);
 })
-musicPlayerLink.onRequestVolume((volume: number) => {
+const offRequestVolume = musicPlayerLink.onRequestVolume((volume: number) => {
   iframeRef.value?.send("setVolume", volume);
 })
 
@@ -91,12 +93,19 @@ function onMessage(msg: string, ...args: any[]) {
   }
 }
 
-watch(iframeRef, () => {
-  iframeRef.value?.addEventListener("dom-ready", () => {
-    iframeRef.value?.addEventListener("ipc-message", (event) => {
-      onMessage(event.channel, ...event.args);
-    });
-  });
+function onWebviewIpcMessage(event: any) {
+  onMessage(event.channel, ...event.args);
+}
+
+function onWebviewDomReady() {
+  playerWebviewReady.value = false;
+}
+
+watch(iframeRef, (next, prev) => {
+  prev?.removeEventListener("dom-ready", onWebviewDomReady);
+  prev?.removeEventListener("ipc-message", onWebviewIpcMessage);
+  next?.addEventListener("dom-ready", onWebviewDomReady);
+  next?.addEventListener("ipc-message", onWebviewIpcMessage);
 });
 
 // Reset loading state when the music source URL changes, so the overlay shows again for a new track
@@ -180,6 +189,9 @@ watch(() => bilibiliUrl.value, () => {
 //获取preload文件路径
 const bilibiliMusicPlayer__filePath = ref<string>();
 ipcBilibiliApi.getPreloadJsFilePath_BilibiliMusicPlayer().then((res: string) => {
+  if (lifecycle.isDestroyed()) {
+    return;
+  }
   bilibiliMusicPlayer__filePath.value = res;
 });
 
@@ -237,19 +249,27 @@ const musicPlayerShow = ref(false);
 let mosueMoveTimer: ReturnType<typeof setTimeout> | undefined;
 const mosueMove = () => {
   musicPlayerShow.value = true;
-  clearTimeout(mosueMoveTimer);
-  mosueMoveTimer = setTimeout(() => {
+  lifecycle.clearManagedTimeout(mosueMoveTimer);
+  mosueMoveTimer = lifecycle.setManagedTimeout(() => {
     musicPlayerShow.value = false;
   }, 2000);
 }
 onMounted(() => {
+  lifecycle.addCleanup(offRequestPlay);
+  lifecycle.addCleanup(offRequestPause);
+  lifecycle.addCleanup(offRequestCurrentTime);
+  lifecycle.addCleanup(offRequestVolume);
+
   window.addEventListener('mousemove', mosueMove);
   window.addEventListener('mousedown', mosueMove);
-});
-onUnmounted(() => {
-  window.removeEventListener('mousemove', mosueMove);
-  window.removeEventListener('mousedown', mosueMove);
-  clearTimeout(mosueMoveTimer);
+  lifecycle.addCleanup(() => {
+    window.removeEventListener('mousemove', mosueMove);
+    window.removeEventListener('mousedown', mosueMove);
+  });
+  lifecycle.addCleanup(() => {
+    iframeRef.value?.removeEventListener("dom-ready", onWebviewDomReady);
+    iframeRef.value?.removeEventListener("ipc-message", onWebviewIpcMessage);
+  });
 });
 
 // 控制播放器样式

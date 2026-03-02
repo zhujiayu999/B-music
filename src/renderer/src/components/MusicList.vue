@@ -1,13 +1,13 @@
-<!-- 音乐列表表单 -->
+<!-- 闊充箰鍒楄〃琛ㄥ崟 -->
 <script setup lang="ts">
-import { compareMusic, musicPlayer, type Music } from '@renderer/mod/playing/playing';
+import { musicKey, musicPlayer, type Music } from '@renderer/mod/playing/playing';
 import PlaySvg from '@renderer/components/svg/Play.vue';
 import PauseSvg from '@renderer/components/svg/Pause.vue';
 import AddMusicCollectionSvg from '@renderer/components/svg/AddMusicCollection.vue';
 import FavoriteButton from './FavoriteButton.vue';
 import PlayerInfoTag from './PlayerInfoTag.vue';
 import ImgDiv from './ImgDiv.vue';
-import { computed, h, reactive, ref, type CSSProperties, type Component } from 'vue';
+import { computed, nextTick, onBeforeUnmount, h, reactive, ref, watch, type CSSProperties, type Component } from 'vue';
 import AddToPlayList from '@renderer/mod/popUp/popUps/AddToPlayList.vue';
 import ContextMenu, { type MenuItem } from '@imengyu/vue3-context-menu'
 import { openPopUpComponent } from '@renderer/mod/popUp/popUp';
@@ -20,22 +20,102 @@ type CustomButton = {
     onClick?: (index: number) => void
 }
 const props = defineProps<{
-    // 音乐列表
+    // 闊充箰鍒楄〃
     list: Music[],
-    // 播放音乐是否将播放列表替换为当前列表
+    // replace current play list when playing from this list
     replacePlayList?: boolean,
-    // 自定义按钮
+    // extra action buttons per row
     customButtons?: CustomButton[],
-    // 是否可拖动排序
+    // enable drag sorting
     dragSort?: boolean,
-    // 当音乐顺序被拖拽改变时
+    // callback after drag sorting changed
     onMusicOrderChange?: (newList: Music[]) => void,
 }>();
 
 
-// 点击播放按钮,播放音乐
+// 鐐瑰嚮鎾斁鎸夐挳,鎾斁闊充箰
+const currentPlayingMusicKey = computed(() => musicKey(musicPlayer.currentMusic));
+const INITIAL_RENDER_COUNT = 200;
+const RENDER_CHUNK_SIZE = 200;
+const renderedCount = ref(0);
+const loadMoreSentinel = ref<HTMLElement | null>(null);
+let loadMoreObserver: IntersectionObserver | undefined;
+
+const shouldProgressiveRender = computed(() => !props.dragSort && props.list.length > INITIAL_RENDER_COUNT);
+const displayList = computed(() => {
+    if (!shouldProgressiveRender.value) {
+        return props.list;
+    }
+    return props.list.slice(0, renderedCount.value);
+});
+const hasMoreRows = computed(() => shouldProgressiveRender.value && renderedCount.value < props.list.length);
+
+function isCurrentMusic(music: Music) {
+    return currentPlayingMusicKey.value === musicKey(music);
+}
+
+function isCurrentPlaying(music: Music) {
+    return isCurrentMusic(music) && musicPlayer.playing;
+}
+
+function resetRenderedCount() {
+    renderedCount.value = shouldProgressiveRender.value
+        ? Math.min(INITIAL_RENDER_COUNT, props.list.length)
+        : props.list.length;
+}
+
+function appendRenderChunk() {
+    if (!shouldProgressiveRender.value) {
+        return;
+    }
+    renderedCount.value = Math.min(props.list.length, renderedCount.value + RENDER_CHUNK_SIZE);
+}
+
+function destroyLoadMoreObserver() {
+    loadMoreObserver?.disconnect();
+    loadMoreObserver = undefined;
+}
+
+function setupLoadMoreObserver() {
+    destroyLoadMoreObserver();
+    if (!hasMoreRows.value || !loadMoreSentinel.value || typeof IntersectionObserver === 'undefined') {
+        return;
+    }
+    loadMoreObserver = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+            appendRenderChunk();
+        }
+    }, {
+        root: null,
+        rootMargin: '300px 0px 300px 0px',
+        threshold: 0
+    });
+    loadMoreObserver.observe(loadMoreSentinel.value);
+}
+
+watch(() => props.list.length, () => {
+    resetRenderedCount();
+    void nextTick().then(setupLoadMoreObserver);
+}, { immediate: true });
+
+watch(() => props.dragSort, () => {
+    resetRenderedCount();
+    void nextTick().then(setupLoadMoreObserver);
+});
+
+watch(loadMoreSentinel, () => {
+    void nextTick().then(setupLoadMoreObserver);
+});
+
+watch(hasMoreRows, () => {
+    if (!hasMoreRows.value) {
+        destroyLoadMoreObserver();
+        return;
+    }
+    void nextTick().then(setupLoadMoreObserver);
+});
 function chickMusicIcon(music: Music, index: number) {
-    if (compareMusic(musicPlayer.currentMusic, music)) {
+    if (isCurrentMusic(music)) {
         if (musicPlayer.playing) {
             musicPlayer.requestPause();
         } else {
@@ -55,11 +135,11 @@ function chickMusicIcon(music: Music, index: number) {
     }
 }
 
-// 右键菜单
+// 鍙抽敭鑿滃崟
 function rightClick(event: MouseEvent, music: Music, index: number) {
     event.preventDefault();
     const payButton = computed<CustomButton>(() => {
-        if (compareMusic(musicPlayer.currentMusic, music) && musicPlayer.playing) {
+        if (isCurrentPlaying(music)) {
             return {
                 icon: PauseSvg,
                 title: '暂停',
@@ -91,26 +171,26 @@ function rightClick(event: MouseEvent, music: Music, index: number) {
         minWidth: 200,
         items: computed<MenuItem[]>(() => {
             let items: MenuItem[] = [];
-            // 播放/暂停
+            // 鎾斁/鏆傚仠
             items.push({
                 label: payButton.value.title,
                 icon: h(payButton.value.icon, { style: 'width: 1rem; height: 1rem;' }),
                 onClick: () => payButton.value.onClick?.(index)
             });
-            // 下一首播放
+            // play next
             items.push({
                 label: '下一首播放',
                 icon: h(PlaySvg, { style: 'width: 1rem; height: 1rem;' }),
                 onClick: () => playList.addNext(music)
             });
-            // 收藏到歌单
+            // add to playlist
             items.push({
                 label: addToListButton.title,
                 icon: h(addToListButton.icon, { style: 'width: 1rem; height: 1rem;' }),
                 onClick: () => addToListButton.onClick?.(index),
                 divided: true
             });
-            // 自定义按钮
+            // custom buttons
             if (props.customButtons) {
                 for (const cbutton of props.customButtons) {
                     items.push({
@@ -126,8 +206,8 @@ function rightClick(event: MouseEvent, music: Music, index: number) {
 }
 
 
-//用于拖动排序
-//拖拽功能
+//鐢ㄤ簬鎷栧姩鎺掑簭
+//鎷栨嫿鍔熻兘
 let drag = ref<{
     x: number,
     y: number,
@@ -136,11 +216,24 @@ let drag = ref<{
     mouseMove: (event: MouseEvent, index: number) => void,
     mouseLeave: (event: MouseEvent, index: number) => void,
 }>();
+let activeDocumentMousemoveHandler: ((event: MouseEvent) => void) | undefined;
+let activeDocumentMouseupHandler: (() => void) | undefined;
+
+function cleanupDocumentDragListeners() {
+    if (activeDocumentMousemoveHandler) {
+        document.removeEventListener('mousemove', activeDocumentMousemoveHandler);
+        activeDocumentMousemoveHandler = undefined;
+    }
+    if (activeDocumentMouseupHandler) {
+        document.removeEventListener('mouseup', activeDocumentMouseupHandler);
+        activeDocumentMouseupHandler = undefined;
+    }
+}
 function mouseDown(_mouseDownEvent: MouseEvent, music: Music, mouseDownIndex: number) {
     if (!props.dragSort) {
         return;
     }
-    //判断是移动到上面还是下面 true 上面 false 下面
+    //鍒ゆ柇鏄Щ鍔ㄥ埌涓婇潰杩樻槸涓嬮潰 true 涓婇潰 false 涓嬮潰
     function moveUpOrDown(event: MouseEvent): boolean {
         const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
         return event.clientY - rect.top < rect.height / 2;
@@ -183,13 +276,21 @@ function mouseDown(_mouseDownEvent: MouseEvent, music: Music, mouseDownIndex: nu
         drag.value!.x = event2.clientX;
         drag.value!.y = event2.clientY;
     };
+    cleanupDocumentDragListeners();
+    activeDocumentMousemoveHandler = onMousemove;
     document.addEventListener('mousemove', onMousemove);
-    //鼠标松开事件
-    document.addEventListener('mouseup', () => {
-        document.removeEventListener('mousemove', onMousemove);
+    const onMouseup = () => {
+        cleanupDocumentDragListeners();
         drag.value = undefined;
-    });
+    };
+    activeDocumentMouseupHandler = onMouseup;
+    document.addEventListener('mouseup', onMouseup);
 }
+
+onBeforeUnmount(() => {
+    destroyLoadMoreObserver();
+    cleanupDocumentDragListeners();
+});
 
 </script>
 <template>
@@ -199,37 +300,38 @@ function mouseDown(_mouseDownEvent: MouseEvent, music: Music, mouseDownIndex: nu
             <div class="info">歌曲</div>
             <div class="like">喜欢</div>
         </div>
-        <div class="line line-content" :class="{ playing: compareMusic(musicPlayer.currentMusic, music) }"
-            v-for="music, index of props.list" @mousedown="mouseDown($event, music, index)"
+        <div class="line line-content" :class="{ playing: isCurrentMusic(music) }"
+            v-for="music, index of displayList" :key="musicKey(music)"
+            v-memo="[musicKey(music), isCurrentMusic(music), isCurrentPlaying(music), !!drag]"
+            @mousedown="mouseDown($event, music, index)"
             @mouseup="drag?.mouseUp($event, index)" @mousemove="drag?.mouseMove($event, index)"
             @mouseleave="drag?.mouseLeave($event, index)" @contextmenu="rightClick($event, music, index)">
-            <!-- 序号 -->
+            <!-- 搴忓彿 -->
             <div class="index">{{ index }}</div>
-            <!-- 音乐信息 -->
+            <!-- 闊充箰淇℃伅 -->
             <div class="info">
-                <!-- 图标 -->
+                <!-- 鍥炬爣 -->
                 <ImgDiv class="info-icon" @click="chickMusicIcon(music, index)" :src="music.iconUrl">
-                    <!-- 遮罩 -->
+                    <!-- 閬僵 -->
                     <div class="info-icon-mask">
-                        <!-- 播放暂停按钮 -->
-                        <PauseSvg class="icon"
-                            v-if="compareMusic(musicPlayer.currentMusic, music) && musicPlayer.playing" />
+                        <!-- 鎾斁鏆傚仠鎸夐挳 -->
+                        <PauseSvg class="icon" v-if="isCurrentPlaying(music)" />
                         <PlaySvg class="icon" v-else />
                     </div>
                 </ImgDiv>
-                <!-- 内容 -->
+                <!-- 鍐呭 -->
                 <div class="info-content">
-                    <!-- 名称 -->
+                    <!-- 鍚嶇О -->
                     <div class="info-name">{{ music.musicName }}</div>
-                    <!-- 名称下面一排 -->
+                    <!-- 鍚嶇О涓嬮潰涓€鎺?-->
                     <div class="info-author">
-                        <!-- 播放器 -->
+                        <!-- 鎾斁鍣?-->
                         <PlayerInfoTag class="item-player" :playerName="music.playerName" />
-                        <!-- 作者 -->
+                        <!-- 浣滆€?-->
                         <div class="item-author">{{ music.musicAuthor }}</div>
                     </div>
                 </div>
-                <!-- 按钮组 -->
+                <!-- 鎸夐挳缁?-->
                 <div class="button-grep">
                     <div class="button-grep-button" :title="button.title" @click="button.onClick?.(index)"
                         v-for="button of props.customButtons">
@@ -241,22 +343,23 @@ function mouseDown(_mouseDownEvent: MouseEvent, music: Music, mouseDownIndex: nu
                     </div>
                 </div>
             </div>
-            <!-- 喜欢 -->
+            <!-- 鍠滄 -->
             <div class="like">
                 <FavoriteButton :music="music" style="width: 1.2rem;height: 1.2rem;" />
             </div>
         </div>
-        <!-- 拖动中的元素 -->
+        <!-- 鎷栧姩涓殑鍏冪礌 -->
+        <div v-if="hasMoreRows" ref="loadMoreSentinel" class="virtual-load-more-sentinel"></div>
         <div v-if="drag" class="drag-item">
             <ImgDiv class="info-icon" :src="drag.music.iconUrl" />
             <div class="info-content">
-                <!-- 名称 -->
+                <!-- 鍚嶇О -->
                 <div class="info-name">{{ drag.music.musicName }}</div>
-                <!-- 名称下面一排 -->
+                <!-- 鍚嶇О涓嬮潰涓€鎺?-->
                 <div class="info-author">
-                    <!-- 播放器 -->
+                    <!-- 鎾斁鍣?-->
                     <PlayerInfoTag class="item-player" :playerName="drag.music.playerName" />
-                    <!-- 作者 -->
+                    <!-- 浣滆€?-->
                     <div class="item-author">{{ drag.music.musicAuthor }}</div>
                 </div>
             </div>
@@ -414,6 +517,8 @@ function mouseDown(_mouseDownEvent: MouseEvent, music: Music, mouseDownIndex: nu
     height: 3.5rem;
     border-radius: 0.5rem;
     user-select: none;
+    content-visibility: auto;
+    contain-intrinsic-size: 56px;
 }
 
 .pay-list .line-content .index {
@@ -459,5 +564,10 @@ function mouseDown(_mouseDownEvent: MouseEvent, music: Music, mouseDownIndex: nu
     gap: 0.5rem;
     margin: 0 0.5rem;
     align-items: center;
+}
+
+.virtual-load-more-sentinel {
+    height: 1px;
+    width: 100%;
 }
 </style>

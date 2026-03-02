@@ -59,3 +59,22 @@
 1. **安装依赖**: `npm install`
 2. **开发模式**: `npm run dev`
 3. **打包构建**: `npm run build:win`
+
+---
+
+## Latest Updates (2026-03-02)
+
+- Player lifecycle hardening:
+  - Added centralized cleanup management for player components.
+  - Fixed event/timer cleanup paths to prevent residual listeners during rapid track/page switching.
+  - Added unregister support for `musicPlayerLink` request handlers and cleanup on unmount.
+- UI interaction leak fixes:
+  - Added unmount-safe cleanup for global `mousemove`/`mouseup` listeners in list/nav/slider drag logic.
+  - Added cleanup for `WebviewLogin` navigation listeners and lyrics timeupdate listeners.
+- Performance improvements:
+  - Optimized lyric index lookup to binary search for high-frequency updates.
+  - Parallelized account status/profile loading and playlist icon loading.
+  - Added incremental rendering for long music lists (chunked append with observer), plus memoized row rendering and `content-visibility`.
+- Validation:
+  - Passed `npm run typecheck`.
+  - Passed `npm run build`.

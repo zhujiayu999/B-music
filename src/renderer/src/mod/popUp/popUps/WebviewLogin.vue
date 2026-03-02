@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import CloseSvg from '@renderer/components/svg/Close.vue';
 
 const props = defineProps<{
@@ -10,21 +10,26 @@ const props = defineProps<{
 }>();
 
 const webviewRef = ref<any>(null);
+const onDidNavigate = (event: any) => {
+    // Very basic check for login redirect or success pages
+    // You can refine this based on actual platform behavior
+    if (props.tag === 'bilibili' && event.url.includes('bilibili.com') && !event.url.includes('passport.bilibili.com') && !event.url.includes('sso.bilibili.com')) {
+       props.onSuccess();
+       props.closePopUpSelf();
+    } else if (props.tag === 'netease' && event.url.includes('music.163.com') && !event.url.includes('login') && !event.url.includes('st.music.163.com')) {
+       props.onSuccess();
+       props.closePopUpSelf();
+    }
+};
 
 onMounted(() => {
     if (webviewRef.value) {
-        webviewRef.value.addEventListener('did-navigate', (event: any) => {
-            // Very basic check for login redirect or success pages
-            // You can refine this based on actual platform behavior
-            if (props.tag === 'bilibili' && event.url.includes('bilibili.com') && !event.url.includes('passport.bilibili.com') && !event.url.includes('sso.bilibili.com')) {
-               props.onSuccess();
-               props.closePopUpSelf();
-            } else if (props.tag === 'netease' && event.url.includes('music.163.com') && !event.url.includes('login') && !event.url.includes('st.music.163.com')) {
-               props.onSuccess();
-               props.closePopUpSelf();
-            }
-        });
+        webviewRef.value.addEventListener('did-navigate', onDidNavigate);
     }
+});
+
+onBeforeUnmount(() => {
+    webviewRef.value?.removeEventListener('did-navigate', onDidNavigate);
 });
 
 function close() {

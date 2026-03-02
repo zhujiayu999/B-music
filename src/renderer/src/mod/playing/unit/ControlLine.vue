@@ -1,6 +1,6 @@
 <!-- 进度条组件 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { musicPlayer } from '../playing';
 
 
@@ -45,7 +45,11 @@ function updateCurrentTime() {
 
 function mosueDown(event: MouseEvent) {
     isMosueDown.value = true;
+    cleanupWindowDragListeners();
     function updateCurrentPercentage(event1: MouseEvent) {
+        if (!lineCilckEl.value) {
+            return;
+        }
         const rect = (lineCilckEl.value as HTMLElement).getBoundingClientRect();
         const x = event1.clientX - rect.left;
         const width = rect.width;
@@ -56,21 +60,43 @@ function mosueDown(event: MouseEvent) {
     }
     function mosueUp(event1: MouseEvent) {
         isMosueDown.value = false;
-        window.removeEventListener('mousemove', mosueMove);
-        window.removeEventListener('mouseup', mosueUp);
+        cleanupWindowDragListeners();
         updateCurrentPercentage(event1);
         updateCurrentTime();
     }
+    activeWindowMousemoveHandler = mosueMove;
+    activeWindowMouseupHandler = mosueUp;
     window.addEventListener('mousemove', mosueMove);
     window.addEventListener('mouseup', mosueUp);
     updateCurrentPercentage(event);
 }
 
 function onMouseMove(event: MouseEvent) {
+    if (!lineCilckEl.value) {
+        return;
+    }
     const rect = (lineCilckEl.value as HTMLElement).getBoundingClientRect();
     const x = event.clientX - rect.left;
     hoverPercentage.value = Math.min(1, Math.max(0, x / rect.width));
 }
+
+let activeWindowMousemoveHandler: ((event: MouseEvent) => void) | undefined;
+let activeWindowMouseupHandler: ((event: MouseEvent) => void) | undefined;
+
+function cleanupWindowDragListeners() {
+    if (activeWindowMousemoveHandler) {
+        window.removeEventListener('mousemove', activeWindowMousemoveHandler);
+        activeWindowMousemoveHandler = undefined;
+    }
+    if (activeWindowMouseupHandler) {
+        window.removeEventListener('mouseup', activeWindowMouseupHandler);
+        activeWindowMouseupHandler = undefined;
+    }
+}
+
+onBeforeUnmount(() => {
+    cleanupWindowDragListeners();
+});
 
 </script>
 <template>

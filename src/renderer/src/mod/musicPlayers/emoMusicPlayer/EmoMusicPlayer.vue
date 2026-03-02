@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, Ref, watch } from 'vue';
 import { type MusicPlayerLink } from '../musicPlayers';
+import { usePlayerLifecycle } from '../usePlayerLifecycle';
 import { EmoMusicData, paresEmoMusicData } from './emoMusic';
 import { song_url_v1, SoundQualityType, lyric } from "./emoApi";
 import colorthief from 'colorthief';
@@ -13,16 +14,20 @@ const props = defineProps<{
 const the_song = ref<string>('');
 const musicPlayerLink = props.musicPlayerLink;
 const musicData: Ref<EmoMusicData> = computed(() => paresEmoMusicData(musicPlayerLink.currentMusicData));
+const lifecycle = usePlayerLifecycle();
 
 // Add failsafe timeout for song loading
-const loadTimeout = setTimeout(() => {
+const loadTimeout = lifecycle.setManagedTimeout(() => {
     console.error('[EmoMusicPlayer] Timeout loading song URL');
     musicPlayerLink.updateLoading(false);
     musicPlayerLink.updatePlaying(false);
 }, 3000);
 
 song_url_v1({ id: musicData.value.id, level: SoundQualityType.standard }).then((res) => {
-    clearTimeout(loadTimeout);
+    lifecycle.clearManagedTimeout(loadTimeout);
+    if (lifecycle.isDestroyed()) {
+        return;
+    }
     if (res?.body?.data?.[0]?.url) {
         musicPlayerLink.updateDuration(res.body.data[0].time);
         the_song.value = res.body.data[0].url;
@@ -31,7 +36,10 @@ song_url_v1({ id: musicData.value.id, level: SoundQualityType.standard }).then((
         musicPlayerLink.updatePlaying(false);
     }
 }).catch((err) => {
-    clearTimeout(loadTimeout);
+    lifecycle.clearManagedTimeout(loadTimeout);
+    if (lifecycle.isDestroyed()) {
+        return;
+    }
     console.error('[EmoMusicPlayer] Failed to load song URL', err);
     musicPlayerLink.updateLoading(false);
     musicPlayerLink.updatePlaying(false);
@@ -49,63 +57,111 @@ musicPlayerLink.updateContrMaxDisplay({
 });
 
 // 播放
-musicPlayerLink.onRequestPlay(() => {
+const offRequestPlay = musicPlayerLink.onRequestPlay(() => {
     playing.value = true;
     audio.value?.play();
 });
 
 // 暂停
-musicPlayerLink.onRequestPause(() => {
+const offRequestPause = musicPlayerLink.onRequestPause(() => {
     playing.value = false;
     audio.value?.pause();
 });
+
 // 设置音量
-musicPlayerLink.onRequestVolume((volume: number) => {
-    audio.value!.volume = volume;
+const offRequestVolume = musicPlayerLink.onRequestVolume((volume: number) => {
+    if (!audio.value) {
+        return;
+    }
+    audio.value.volume = volume;
 });
 
 // 播放当前位置
-musicPlayerLink.onRequestCurrentTime((currentTime: number) => {
-    // findIndex();
-    // console.log(findIndex());
-    audio.value!.currentTime = currentTime / 1000;
+const offRequestCurrentTime = musicPlayerLink.onRequestCurrentTime((currentTime: number) => {
+    if (!audio.value) {
+        return;
+    }
+    audio.value.currentTime = currentTime / 1000;
 });
 
 const c1 = ref("");
 const c2 = ref("");
 
 const currentTime = ref(0);
+const onAudioTimeUpdate = () => {
+    if (!audio.value) {
+        return;
+    }
+    currentTime.value = audio.value.currentTime;
+    musicPlayerLink.updateCurrentTime(audio.value.currentTime * 1000);
+};
+
+const onAudioEnded = () => {
+    musicPlayerLink.updatePlaying(false);
+    musicPlayerLink.updateEnded(true);
+    playing.value = false;
+};
+
+const onAudioPlay = () => {
+    musicPlayerLink.updatePlaying(true);
+    musicPlayerLink.updateEnded(false);
+    playing.value = true;
+};
+
+const onAudioPause = () => {
+    musicPlayerLink.updatePlaying(false);
+    playing.value = false;
+};
+
+const onAudioVolumeChange = () => {
+    if (!audio.value) {
+        return;
+    }
+    musicPlayerLink.updateVolume(audio.value.volume);
+};
+
+const onAudioCanPlay = () => {
+    musicPlayerLink.updateLoading(false);
+    if (playing.value) {
+        audio.value?.play();
+    }
+};
+
 onMounted(() => {
-    audio.value!.addEventListener('timeupdate', () => {
-        currentTime.value = audio.value!.currentTime;
-        musicPlayerLink.updateCurrentTime(audio.value!.currentTime * 1000);
+    lifecycle.addCleanup(offRequestPlay);
+    lifecycle.addCleanup(offRequestPause);
+    lifecycle.addCleanup(offRequestVolume);
+    lifecycle.addCleanup(offRequestCurrentTime);
+
+    const audioElement = audio.value;
+    if (!audioElement) {
+        return;
+    }
+
+    audioElement.addEventListener('timeupdate', onAudioTimeUpdate);
+    audioElement.addEventListener('ended', onAudioEnded);
+    audioElement.addEventListener('play', onAudioPlay);
+    audioElement.addEventListener('pause', onAudioPause);
+    audioElement.addEventListener('volumechange', onAudioVolumeChange);
+    audioElement.addEventListener('canplay', onAudioCanPlay);
+
+    lifecycle.addCleanup(() => {
+        audioElement.removeEventListener('timeupdate', onAudioTimeUpdate);
+        audioElement.removeEventListener('ended', onAudioEnded);
+        audioElement.removeEventListener('play', onAudioPlay);
+        audioElement.removeEventListener('pause', onAudioPause);
+        audioElement.removeEventListener('volumechange', onAudioVolumeChange);
+        audioElement.removeEventListener('canplay', onAudioCanPlay);
     });
-    audio.value!.addEventListener('ended', () => {
-        musicPlayerLink.updatePlaying(false);
-        musicPlayerLink.updateEnded(true);
-        playing.value = false;
+
+    lifecycle.addCleanup(() => {
+        audioElement.pause();
+        audioElement.src = '';
     });
-    audio.value!.addEventListener('play', () => {
-        musicPlayerLink.updatePlaying(true);
-        musicPlayerLink.updateEnded(false);
-        playing.value = true;
-    });
-    audio.value!.addEventListener('pause', () => {
-        musicPlayerLink.updatePlaying(false);
-        playing.value = false;
-    });
-    audio.value!.addEventListener('volumechange', () => {
-        musicPlayerLink.updateVolume(audio.value!.volume);
-    });
-    audio.value!.addEventListener('canplay', () => {
-        musicPlayerLink.updateLoading(false);
-        if (playing.value) {
-            audio.value?.play();
-        }
-    });
-    audio.value!.volume = musicPlayerLink.volume;
+
+    audioElement.volume = musicPlayerLink.volume;
     scrollToCurrentLyric();
-})
+});
 
 // 实现背景色的渐变，必须等待图片加载完毕再调用，否则可能死循环或抛出异常锁死主线程
 const onImageLoad = () => {
@@ -131,29 +187,49 @@ musicPlayerLink.updateButtomWidth("5.5rem");
 // 获取歌词
 const parsedLyrics = ref<ReturnType<typeof parseYrc>>([]);
 
-const lyricTimeout = setTimeout(() => {
+const lyricTimeout = lifecycle.setManagedTimeout(() => {
     console.error('[EmoMusicPlayer] Timeout loading lyrics');
 }, 3000);
 
 lyric({ id: musicData.value.id }).then((res) => {
-    clearTimeout(lyricTimeout);
+    lifecycle.clearManagedTimeout(lyricTimeout);
+    if (lifecycle.isDestroyed()) {
+        return;
+    }
     if (res?.body?.lrc?.lyric) {
         parsedLyrics.value = parseYrc(res.body.lrc.lyric);
         console.log(parsedLyrics.value);
     }
 }).catch((err) => {
-    clearTimeout(lyricTimeout);
+    lifecycle.clearManagedTimeout(lyricTimeout);
+    if (lifecycle.isDestroyed()) {
+        return;
+    }
     console.error('[EmoMusicPlayer] Failed to load lyrics', err);
 });
-const currentIndex = computed(() => {
-    for (let i = 0; i < parsedLyrics.value.length; i++) {
-        if (parsedLyrics.value[i].time > currentTime.value) {
-            return i - 1;
+
+function findCurrentLyricIndex(time: number) {
+    const lyrics = parsedLyrics.value;
+    if (lyrics.length === 0) {
+        return -1;
+    }
+
+    let left = 0;
+    let right = lyrics.length - 1;
+    let answer = -1;
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        if (lyrics[mid].time <= time) {
+            answer = mid;
+            left = mid + 1;
+        } else {
+            right = mid - 1;
         }
     }
-    // 歌词的最后一句
-    return parsedLyrics.value.length - 1;
-});
+    return answer;
+}
+
+const currentIndex = computed(() => findCurrentLyricIndex(currentTime.value));
 
 // 滚动条和歌词高亮的适配
 const scrollToCurrentLyric = () => {
@@ -173,13 +249,13 @@ const scrollToCurrentLyric = () => {
 
 // 歌词点击事件
 const updateCurrentTime = (time: number) => {
-      musicPlayerLink.updateCurrentTime(time * 1000);
-      if (audio.value) {
+    musicPlayerLink.updateCurrentTime(time * 1000);
+    if (audio.value) {
         audio.value.currentTime = time;
-      }
-      // 立马滚动到当前歌词
-      scrollToCurrentLyric();
-    };
+    }
+    // 立马滚动到当前歌词
+    scrollToCurrentLyric();
+};
 
 watch(currentIndex, (idx) => {
     scrollToCurrentLyric();

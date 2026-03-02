@@ -1,4 +1,5 @@
 const electron = window.electron;
+export const BMUSIC_ACCOUNT_CHANGED_EVENT = 'bmusic-account-changed';
 
 export interface BMusicAccount {
     id: number;
@@ -51,4 +52,14 @@ export async function deleteBMusicAccount(id: number): Promise<boolean> {
 
 export async function switchBMusicAccount(id: number): Promise<BMusicAccount | null> {
     return await electron.ipcRenderer.invoke('switch-bmusic-account', id);
+}
+
+export function notifyBMusicAccountChanged(): void {
+    window.dispatchEvent(new Event(BMUSIC_ACCOUNT_CHANGED_EVENT));
+}
+
+export function onBMusicAccountChanged(callback: () => void): () => void {
+    const handler = () => callback();
+    window.addEventListener(BMUSIC_ACCOUNT_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(BMUSIC_ACCOUNT_CHANGED_EVENT, handler);
 }

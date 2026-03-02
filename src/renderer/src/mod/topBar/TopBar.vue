@@ -4,7 +4,7 @@ import { LOGO_URL } from '@renderer/imageUrls';
 import ImgDiv from '@renderer/components/ImgDiv.vue';
 import SearcnSvg from '@renderer/components/svg/Search.vue';
 import GearSvg from '@renderer/components/svg/Gear.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onBeforeUnmount, onMounted } from 'vue';
 import { setContent } from '@renderer/mod/content/content';
 import SearchContents from '@renderer/mod/content/contents/SearchContents.vue';
 import Settings from '@renderer/mod/content/contents/Settings.vue';
@@ -14,7 +14,7 @@ import CloudCheckSvg from '@renderer/components/svg/CloudCheck.vue';
 import CloudSlashSvg from '@renderer/components/svg/CloudSlash.vue';
 import ExclamationCrcleSvg from '@renderer/components/svg/ExclamationCrcle.vue';
 
-import { getActiveBMusicAccount, type BMusicAccount } from '@renderer/ipcApi/ipcAccountSettings';
+import { getActiveBMusicAccount, onBMusicAccountChanged, type BMusicAccount } from '@renderer/ipcApi/ipcAccountSettings';
 
 const searchValue = ref('');
 const activeAccount = ref<BMusicAccount | null>(null);
@@ -36,9 +36,20 @@ async function loadActiveAccount() {
     activeAccount.value = await getActiveBMusicAccount() || null;
 }
 
+let unsubscribeAccountChanged: (() => void) | undefined;
+const onWindowFocus = () => { void loadActiveAccount(); };
+
 onMounted(() => {
-    loadActiveAccount();
-    setInterval(loadActiveAccount, 2000);
+    void loadActiveAccount();
+    unsubscribeAccountChanged = onBMusicAccountChanged(() => {
+        void loadActiveAccount();
+    });
+    window.addEventListener('focus', onWindowFocus);
+});
+
+onBeforeUnmount(() => {
+    unsubscribeAccountChanged?.();
+    window.removeEventListener('focus', onWindowFocus);
 });
 
 function search() {

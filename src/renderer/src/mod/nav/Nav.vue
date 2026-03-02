@@ -4,7 +4,7 @@ import SearchIcon from '@renderer/components/svg/Search.vue'
 import Recommend from '../content/contents/Recommend.vue';
 import BilibiliFavorites from '../content/contents/BilibiliFavorites.vue';
 import NeteaseLiked from '../content/contents/NeteaseLiked.vue';
-import { h, reactive, ref, watch } from 'vue';
+import { h, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { playListStorage, MYLIKEED_PLAYLIST_NAME } from '@renderer/storage/playListStorage';
 import PlayListContents from '../content/contents/PlayListContents.vue';
 import IcFavoriteSvg from '@renderer/components/svg/IcFavorite.vue';
@@ -17,12 +17,40 @@ import Confirm from '../popUp/popUps/Confirm.vue';
 
 const iconMap = reactive(new Map<string, string>);
 const shwoPlayLists = ref<string[]>([]);
+let iconLoadVersion = 0;
 watch(() => playListStorage.playLists, async () => {
-  shwoPlayLists.value = playListStorage.playLists.filter(n => n !== MYLIKEED_PLAYLIST_NAME);
-  iconMap.clear();
-  for (const name of shwoPlayLists.value) {
-    iconMap.set(name, await playListStorage.readPlayListIconUrl(name));
+  const currentVersion = ++iconLoadVersion;
+  const nextPlayLists = playListStorage.playLists.filter(n => n !== MYLIKEED_PLAYLIST_NAME);
+  shwoPlayLists.value = nextPlayLists;
+
+  const nextPlayListSet = new Set(nextPlayLists);
+  for (const oldName of Array.from(iconMap.keys())) {
+    if (!nextPlayListSet.has(oldName)) {
+      iconMap.delete(oldName);
+    }
   }
+
+  const namesToLoad = nextPlayLists.filter((name) => !iconMap.has(name));
+  if (namesToLoad.length === 0) {
+    return;
+  }
+
+  const iconUrls = await Promise.all(namesToLoad.map(async (name) => {
+    try {
+      return await playListStorage.readPlayListIconUrl(name);
+    } catch (error) {
+      console.error('[Nav] failed to load playlist icon', name, error);
+      return '';
+    }
+  }));
+
+  if (currentVersion !== iconLoadVersion) {
+    return;
+  }
+
+  namesToLoad.forEach((name, index) => {
+    iconMap.set(name, iconUrls[index]);
+  });
 }, { immediate: true });
 
 //用于拖动排序
@@ -35,6 +63,20 @@ let drag = ref<{
   mouseMove: (event: MouseEvent, index: number) => void,
   mouseLeave: (event: MouseEvent, index: number) => void,
 }>();
+let activeDocumentMousemoveHandler: ((event: MouseEvent) => void) | undefined;
+let activeDocumentMouseupHandler: (() => void) | undefined;
+
+function cleanupDocumentDragListeners() {
+  if (activeDocumentMousemoveHandler) {
+    document.removeEventListener('mousemove', activeDocumentMousemoveHandler);
+    activeDocumentMousemoveHandler = undefined;
+  }
+  if (activeDocumentMouseupHandler) {
+    document.removeEventListener('mouseup', activeDocumentMouseupHandler);
+    activeDocumentMouseupHandler = undefined;
+  }
+}
+
 function mouseDown(_mouseDownEvent: MouseEvent, musicList: string, mouseDownIndex: number) {
   //判断是移动到上面还是下面 true 上面 false 下面
   function moveUpOrDown(event: MouseEvent): boolean {
@@ -79,13 +121,22 @@ function mouseDown(_mouseDownEvent: MouseEvent, musicList: string, mouseDownInde
     drag.value!.x = event2.clientX;
     drag.value!.y = event2.clientY;
   };
+  cleanupDocumentDragListeners();
+  activeDocumentMousemoveHandler = onMousemove;
   document.addEventListener('mousemove', onMousemove);
   //鼠标松开事件
-  document.addEventListener('mouseup', () => {
-    document.removeEventListener('mousemove', onMousemove);
+  const onMouseup = () => {
+    cleanupDocumentDragListeners();
     drag.value = undefined;
-  });
+  };
+  activeDocumentMouseupHandler = onMouseup;
+  document.addEventListener('mouseup', onMouseup);
 }
+
+onBeforeUnmount(() => {
+  iconLoadVersion++;
+  cleanupDocumentDragListeners();
+});
 
 // 邮件菜单
 function onContextMenu(e: MouseEvent, name: string) {

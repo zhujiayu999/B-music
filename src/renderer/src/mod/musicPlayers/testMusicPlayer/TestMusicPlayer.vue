@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
 import { musicPlayer } from '@renderer/mod/playing/playing'
 import { playList } from '@renderer/mod/playingList/playingList';
 import { type MusicPlayerLink } from '../musicPlayers';
@@ -10,17 +10,24 @@ const props = defineProps<{
 const musicPlayerLink = props.musicPlayerLink;
 
 musicPlayerLink.updateDuration(20000);
-musicPlayerLink.onRequestPlay(() => {
+const offRequestPlay = musicPlayerLink.onRequestPlay(() => {
     musicPlayerLink.updatePlaying(true);
 });
-musicPlayerLink.onRequestPause(() => {
+const offRequestPause = musicPlayerLink.onRequestPause(() => {
     musicPlayerLink.updatePlaying(false);
 });
-musicPlayerLink.onRequestCurrentTime((currentTime: number) => {
+const offRequestCurrentTime = musicPlayerLink.onRequestCurrentTime((currentTime: number) => {
     musicPlayerLink.updateCurrentTime(currentTime);
 });
-musicPlayerLink.onRequestVolume((volume: number) => {
+const offRequestVolume = musicPlayerLink.onRequestVolume((volume: number) => {
     musicPlayerLink.updateVolume(volume);
+});
+
+onBeforeUnmount(() => {
+    offRequestPlay();
+    offRequestPause();
+    offRequestCurrentTime();
+    offRequestVolume();
 });
 
 const count = ref(0);

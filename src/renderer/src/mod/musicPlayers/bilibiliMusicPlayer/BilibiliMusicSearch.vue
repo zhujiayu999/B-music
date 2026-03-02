@@ -4,7 +4,7 @@ import { ipcBilibiliApi } from "@renderer/ipcApi/ipcBilibiliApi";
 import { type Music } from '@renderer/mod/playing/playing';
 import OverWatchLoading from '@renderer/components/OverWatchLoading.vue';
 import { type WebviewTag } from 'electron';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { paresBilibiliMusicDataToString } from './bilibiliMusic';
 
 const props = defineProps<{
@@ -25,6 +25,7 @@ const musicList = computed<Music[]>(()=>result.value.map((item) => ({
 const searchWebview = ref<WebviewTag | null>();
 const webviewLoaded = ref(false);
 const isFirstLoad = ref(true);
+let destroyed = false;
 
 function onMessage(msg: string, ...args: any[]) {
     if (msg == "searchResult") {
@@ -34,17 +35,33 @@ function onMessage(msg: string, ...args: any[]) {
     }
 }
 
-watch(searchWebview, () => {
-    searchWebview.value?.addEventListener("dom-ready", () => {
-        searchWebview.value?.addEventListener("ipc-message", (event) => {
-            onMessage(event.channel, ...event.args);
-        });
-    });
+function onSearchWebviewIpcMessage(event: any) {
+    onMessage(event.channel, ...event.args);
+}
+
+function onSearchWebviewDomReady() {
+    webviewLoaded.value = false;
+}
+
+watch(searchWebview, (next, prev) => {
+    prev?.removeEventListener("dom-ready", onSearchWebviewDomReady);
+    prev?.removeEventListener("ipc-message", onSearchWebviewIpcMessage);
+    next?.addEventListener("dom-ready", onSearchWebviewDomReady);
+    next?.addEventListener("ipc-message", onSearchWebviewIpcMessage);
+});
+
+onBeforeUnmount(() => {
+    destroyed = true;
+    searchWebview.value?.removeEventListener("dom-ready", onSearchWebviewDomReady);
+    searchWebview.value?.removeEventListener("ipc-message", onSearchWebviewIpcMessage);
 });
 
 //获取preload文件路径
 const bilibiliMusicPlayer__filePath = ref<string>();
 ipcBilibiliApi.getPreloadJsFilePath_BilibiliMusicSearch().then((res: string) => {
+    if (destroyed) {
+        return;
+    }
     bilibiliMusicPlayer__filePath.value = res;
 });
 

@@ -4,6 +4,7 @@ import {
     checkBilibiliLogin, logoutBilibili, getBilibiliProfile,
     checkNeteaseLogin, logoutNetease, getNeteaseProfile,
     getBMusicAccounts, getActiveBMusicAccount, createBMusicAccount, deleteBMusicAccount, switchBMusicAccount,
+    notifyBMusicAccountChanged,
     type BMusicAccount
 } from '@renderer/ipcApi/ipcAccountSettings';
 import UniversalButton from '@renderer/components/UniversalButton.vue';
@@ -25,19 +26,19 @@ async function loadBMusicAccounts() {
 }
 
 async function checkCloudStatus() {
-    isBilibiliLoggedIn.value = await checkBilibiliLogin();
-    if (isBilibiliLoggedIn.value) {
-        bilibiliProfile.value = await getBilibiliProfile();
-    } else {
-        bilibiliProfile.value = null;
-    }
+    const [bilibiliLoggedIn, neteaseLoggedIn] = await Promise.all([
+        checkBilibiliLogin(),
+        checkNeteaseLogin()
+    ]);
+    isBilibiliLoggedIn.value = bilibiliLoggedIn;
+    isNeteaseLoggedIn.value = neteaseLoggedIn;
 
-    isNeteaseLoggedIn.value = await checkNeteaseLogin();
-    if (isNeteaseLoggedIn.value) {
-        neteaseProfile.value = await getNeteaseProfile();
-    } else {
-        neteaseProfile.value = null;
-    }
+    const [bilibiliUserProfile, neteaseUserProfile] = await Promise.all([
+        bilibiliLoggedIn ? getBilibiliProfile() : Promise.resolve(null),
+        neteaseLoggedIn ? getNeteaseProfile() : Promise.resolve(null)
+    ]);
+    bilibiliProfile.value = bilibiliUserProfile;
+    neteaseProfile.value = neteaseUserProfile;
 }
 
 async function handleCreateAccount() {
@@ -46,6 +47,7 @@ async function handleCreateAccount() {
     newAccountName.value = '';
     await loadBMusicAccounts();
     await checkCloudStatus();
+    notifyBMusicAccountChanged();
 }
 
 async function handleDeleteAccount(id: number) {
@@ -57,6 +59,7 @@ async function handleDeleteAccount(id: number) {
         await deleteBMusicAccount(id);
         await loadBMusicAccounts();
         await checkCloudStatus();
+        notifyBMusicAccountChanged();
     }
 }
 
@@ -65,6 +68,7 @@ async function handleSwitchAccount(id: number) {
     await switchBMusicAccount(id);
     await loadBMusicAccounts();
     await checkCloudStatus();
+    notifyBMusicAccountChanged();
 }
 
 onMounted(async () => {
